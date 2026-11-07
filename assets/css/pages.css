@@ -1,0 +1,1109 @@
+/* ==========================================================================
+   EchoText — Pages & feature sections
+   ========================================================================== */
+
+/* ---------- Studio (generator) ---------- */
+.studio-section {
+  position: relative;
+  padding-top: clamp(20px, 4vw, 44px); /* the studio is the top of the home page */
+  scroll-margin-top: var(--nav-h);
+}
+
+.studio {
+  padding: clamp(16px, 3vw, 28px);
+  border-radius: var(--radius-xl);
+}
+
+.studio-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 340px;
+  gap: 20px;
+}
+
+/* Editor */
+.editor {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  background: var(--surface-input);
+  border: 1px solid var(--border);
+  transition: border-color var(--dur), box-shadow var(--dur);
+}
+
+.editor:focus-within {
+  border-color: var(--accent-border);
+  box-shadow: 0 0 0 4px var(--accent-softer);
+}
+
+.editor.has-error {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 4px var(--danger-soft);
+  animation: shake 0.45s;
+}
+
+.editor-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 8px 8px 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.toolbar-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.toolbar-actions .btn-icon {
+  width: 36px;
+  height: 36px;
+}
+
+.editor-surface {
+  position: relative;
+  flex: 1;
+  display: flex;
+}
+
+.editor-textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 320px;
+  padding: 18px;
+  border: 0;
+  outline: 0;
+  resize: vertical;
+  font-size: 16px;
+  line-height: 1.75;
+  color: var(--text);
+  background: transparent;
+}
+
+.editor-textarea::placeholder {
+  color: var(--text-dim);
+}
+
+.drop-overlay {
+  position: absolute;
+  inset: 10px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius);
+  border: 2px dashed var(--accent);
+  background: color-mix(in srgb, var(--bg) 88%, var(--accent));
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+}
+
+.drop-overlay-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  text-align: center;
+  transform: translateY(6px);
+  transition: transform 0.3s var(--ease);
+}
+
+.drop-overlay-inner .icon {
+  color: var(--accent-text);
+}
+
+.drop-overlay-inner span {
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.editor.is-dragging .drop-overlay {
+  opacity: 1;
+}
+
+.editor.is-dragging .drop-overlay-inner {
+  transform: none;
+}
+
+.editor-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding: 10px 16px 12px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-dim);
+}
+
+.editor-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12.5px;
+  color: var(--text-dim);
+  transition: color var(--dur);
+}
+
+.editor-hint:hover {
+  color: var(--text-muted);
+}
+
+.editor-hint u {
+  color: var(--accent-text);
+  text-underline-offset: 2px;
+}
+
+.editor-hint .hint-short {
+  display: none; /* phones: there's nothing to drag a file from */
+}
+
+.counter {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.counter.is-warning [data-chars] {
+  color: var(--warning);
+}
+
+.counter.is-limit [data-chars] {
+  color: var(--danger);
+  font-weight: 600;
+}
+
+.char-meter {
+  height: 2px;
+  background: transparent;
+}
+
+.char-meter span {
+  display: block;
+  height: 100%;
+  width: var(--fill, 0%);
+  background: var(--gradient-accent);
+  transition: width 0.25s var(--ease), background 0.25s;
+}
+
+.counter.is-warning ~ .char-meter span,
+.char-meter.is-warning span {
+  background: var(--warning);
+}
+
+.char-meter.is-limit span {
+  background: var(--danger);
+}
+
+/* Voice panel */
+.voice-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  min-width: 0;
+  padding: 20px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.voice-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.voice-panel-head h3 {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+}
+
+.voice-panel-head h3 .icon {
+  color: var(--accent-text);
+}
+
+/* The title folds the panel on phones only (see the 640px rules); elsewhere it's plain text. */
+.voice-panel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-height: 32px;
+  text-align: left;
+  letter-spacing: inherit;
+}
+
+.voice-panel-toggle:disabled {
+  cursor: default;
+}
+
+.voice-panel-head h3 .voice-panel-chevron {
+  display: none;
+  margin-left: 2px;
+  color: var(--text-muted);
+  transform: rotate(180deg);
+  transition: transform var(--dur) var(--ease);
+}
+
+.voice-panel-body {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.voice-row {
+  display: flex;
+  gap: 8px;
+}
+
+.voice-select { min-width: 0; flex: 1; }
+.generation-progress { display: block; width: 100%; height: 7px; margin-top: 12px; accent-color: var(--accent); }
+.player-exports { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 18px; }
+.player-exports .field-hint { margin: 0; }
+.recovery-list { margin-top: 22px; padding: 18px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--surface); }
+.recovery-heading { margin: 0 0 12px; font-size: 15px; }
+.recovery-item { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; padding: 10px 0; }
+.recovery-item + .recovery-item { border-top: 1px solid var(--border); }
+.recovery-item > div { flex: 1 1 180px; min-width: 0; }
+.recovery-item strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 14px; }
+.recovery-item span { display: block; margin-top: 4px; color: var(--text-muted); font-size: 12px; }
+
+/* The one voice there is: shown like a field, but there's nothing to choose. */
+.voice-model {
+  flex: 1;
+  min-width: 0;
+  height: 46px;
+  padding: 0 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 14.5px;
+  line-height: 44px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: var(--surface-input);
+}
+
+.btn-preview {
+  flex-shrink: 0;
+  height: 46px;
+  padding: 0 14px;
+}
+
+.btn-preview.is-playing {
+  color: var(--accent-contrast);
+  background: var(--gradient-accent);
+  border-color: transparent;
+}
+
+.voice-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.voice-notes:empty {
+  display: none;
+}
+
+/* Actions */
+.studio-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.btn-generate {
+  width: 100%;
+  overflow: hidden;
+}
+
+.btn-generate .btn-generate-loading {
+  display: none;
+}
+
+.btn-generate.is-generating {
+  pointer-events: none;
+  background-size: 200% 100%;
+  background-image: linear-gradient(110deg, #2ee6d6 0%, #78f8ec 25%, #2ee6d6 50%, #1fb3c8 75%, #2ee6d6 100%);
+  animation: shimmer 1.6s linear infinite;
+}
+
+.btn-generate.is-generating .btn-generate-content {
+  display: none;
+}
+
+.btn-generate.is-generating .btn-generate-loading {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+@keyframes shimmer {
+  to {
+    background-position: -200% 0;
+  }
+}
+
+.btn-generate-content {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.studio-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.studio-result {
+  margin-top: 22px;
+  animation: rise 0.5s var(--ease);
+}
+
+.result-loading,
+.result-error {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 20px 22px;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  border: 1px solid var(--border);
+}
+
+.result-loading {
+  border-color: var(--accent-border);
+  background: linear-gradient(120deg, var(--accent-softer), transparent 70%), var(--surface);
+}
+
+.result-loading-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-loading-text strong,
+.result-error-text strong {
+  display: block;
+  font-size: 15px;
+}
+
+.result-loading-text span,
+.result-error-text span {
+  display: block;
+  margin-top: 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.result-error {
+  border-color: rgba(251, 113, 133, 0.3);
+  background: linear-gradient(120deg, var(--danger-soft), transparent 70%), var(--surface);
+}
+
+.result-error-icon {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.result-error-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.result-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* ---------- Audio player ---------- */
+.player {
+  --p: 0%;
+  padding: clamp(16px, 2.6vw, 22px);
+  border-radius: var(--radius-lg);
+  background: linear-gradient(150deg, rgba(46, 230, 214, 0.09), rgba(56, 189, 248, 0.03) 55%, transparent),
+    var(--surface);
+  border: 1px solid var(--accent-border);
+}
+
+.player-top {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.player-play {
+  position: relative;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  color: var(--accent-contrast);
+  background: var(--gradient-accent);
+  box-shadow: var(--glow);
+  transition: transform 0.25s var(--ease-spring), box-shadow var(--dur);
+}
+
+.player-play:hover {
+  transform: scale(1.06);
+}
+
+.player-play:active {
+  transform: scale(0.96);
+}
+
+.player-play::after {
+  content: "";
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid var(--accent);
+  opacity: 0;
+}
+
+.player.is-playing .player-play::after {
+  animation: pulse-ring 1.8s var(--ease) infinite;
+}
+
+@keyframes pulse-ring {
+  0% {
+    opacity: 0.6;
+    transform: scale(0.92);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.28);
+  }
+}
+
+.player-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.player-title {
+  overflow: hidden;
+  font-size: 15.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.player-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.player-dl {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.wave {
+  position: relative;
+  height: 64px;
+  margin: 20px 0 12px;
+  cursor: pointer;
+  touch-action: none;
+}
+
+.wave-layer {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.wave-layer span {
+  flex: 1;
+  min-width: 1px;
+  height: var(--h);
+  min-height: 4px;
+  border-radius: 3px;
+  background: var(--wave-idle);
+}
+
+.wave-fill {
+  clip-path: inset(0 calc(100% - var(--p)) 0 0);
+  transition: clip-path 0.2s linear; /* the playback position glides (see also .progress-fill) */
+}
+
+.wave-fill span {
+  background: linear-gradient(180deg, #8ffaf0, var(--accent) 50%, #1fb3c8);
+}
+
+.player.is-playing .wave-fill span {
+  box-shadow: 0 0 12px rgba(46, 230, 214, 0.35);
+}
+
+.player-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.player-progress .time {
+  min-width: 42px;
+}
+
+.player-progress .time:last-child {
+  text-align: right;
+}
+
+.progress {
+  position: relative;
+  flex: 1;
+  height: 6px;
+  border-radius: var(--radius-full);
+  background: var(--surface-strong);
+  cursor: pointer;
+  touch-action: none;
+}
+
+.progress::before {
+  content: "";
+  position: absolute;
+  inset: -9px 0;
+}
+
+.progress:focus-visible {
+  outline-offset: 6px;
+}
+
+.progress-fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: var(--p);
+  border-radius: inherit;
+  background: var(--gradient-accent);
+  transition: width 0.2s linear;
+}
+
+.progress-thumb {
+  position: absolute;
+  top: 50%;
+  left: var(--p);
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--accent-soft), 0 2px 6px rgba(0, 0, 0, 0.35);
+  transform: translate(-50%, -50%) scale(0);
+  transition: transform 0.18s var(--ease), left 0.2s linear;
+}
+
+/* While dragging, and when the position goes back (playing again), the bar lands at once. */
+.player.is-seeking .progress-fill,
+.player.is-seeking .wave-fill,
+.player.is-snapping .progress-fill,
+.player.is-snapping .wave-fill {
+  transition: none;
+}
+
+.player.is-seeking .progress-thumb,
+.player.is-snapping .progress-thumb {
+  transition: transform 0.18s var(--ease);
+}
+
+.progress:hover .progress-thumb,
+.progress:focus-visible .progress-thumb,
+.player.is-playing .progress-thumb,
+.player.is-seeking .progress-thumb {
+  transform: translate(-50%, -50%) scale(1);
+}
+
+.player-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.player-note .icon {
+  margin-top: 2px;
+  color: var(--info);
+}
+
+.player-note a {
+  color: var(--accent-text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+@media (max-width: 720px) {
+  /* Narrow screens: a smaller player, with Download as an icon button on the title's row. */
+  .player {
+    padding: 14px;
+  }
+
+  .player-top {
+    gap: 12px;
+  }
+
+  .player-play {
+    width: 46px;
+    height: 46px;
+  }
+
+  .player-title {
+    font-size: 14.5px;
+  }
+
+  .player-meta {
+    margin-top: 6px;
+  }
+
+  .player-dl .btn {
+    width: 40px;
+    padding: 0;
+  }
+
+  .player-dl .btn span:last-child {
+    display: none; /* the button keeps its "Download MP3" label for screen readers */
+  }
+
+  .wave {
+    height: 40px;
+    margin: 14px 0 10px;
+  }
+
+  .wave-layer {
+    gap: 2px;
+  }
+
+  .player-note {
+    margin-top: 12px;
+    padding-top: 10px;
+    font-size: 12px;
+  }
+}
+
+/* ---------- History ---------- */
+.history-section {
+  padding-top: clamp(20px, 3.5vw, 36px); /* sits right under the studio, no heading of its own */
+  scroll-margin-top: var(--nav-h);
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.history-item {
+  position: relative; /* for the progress line along its bottom edge */
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 14px 14px 16px;
+  border-radius: var(--radius-lg);
+  transition: border-color var(--dur), transform 0.35s var(--ease), opacity 0.3s;
+}
+
+/* Only a row that has just been added slides in; the rest stay put when the list changes. */
+.history-item.is-new {
+  animation: rise 0.45s var(--ease) both;
+}
+
+.history-item:hover {
+  border-color: var(--border-strong);
+}
+
+.history-item.is-active {
+  border-color: var(--accent-border);
+}
+
+.history-item.is-removing {
+  opacity: 0;
+  transform: translateX(16px);
+}
+
+.history-play {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  border: 1px solid var(--accent-border);
+  transition: transform 0.25s var(--ease-spring), background-color var(--dur), color var(--dur);
+}
+
+.history-play:hover {
+  transform: scale(1.06);
+}
+
+.history-item.is-playing .history-play,
+.history-play:hover {
+  color: var(--accent-contrast);
+  background: var(--gradient-accent);
+  border-color: transparent;
+}
+
+.history-main {
+  min-width: 0;
+}
+
+.history-title {
+  overflow: hidden;
+  font-family: var(--font-sans);
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: 0;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.history-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 12px;
+  margin-top: 7px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.history-meta .chip {
+  height: 24px;
+  font-size: 12px;
+}
+
+.meta-text {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.meta-text .icon {
+  color: var(--text-dim);
+}
+
+/* The progress line sits in the row's bottom padding, so showing it doesn't move anything. */
+.history-progress {
+  position: absolute;
+  right: 16px;
+  bottom: 5px;
+  left: 16px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 3px;
+  background: var(--surface-strong);
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.history-item.is-active .history-progress {
+  opacity: 1;
+}
+
+.history-progress span {
+  display: block;
+  height: 100%;
+  width: var(--p, 0%);
+  background: var(--gradient-accent);
+  transition: width 0.25s linear; /* glides, including the last step to the end */
+}
+
+.history-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.history-count {
+  margin: 0 0 12px;
+  font-size: 13px;
+  color: var(--text-dim);
+}
+
+/* ---------- 404 ---------- */
+.not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: calc(100vh - var(--nav-h) - 200px);
+  padding-block: 60px;
+  text-align: center;
+}
+
+.not-found-code {
+  font-family: var(--font-display);
+  font-size: clamp(96px, 18vw, 180px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.06em;
+}
+
+.not-found p {
+  max-width: 420px;
+  margin-top: 12px;
+  color: var(--text-muted);
+}
+
+.not-found-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 28px;
+}
+
+/* ---------- Responsive ---------- */
+@media (max-width: 1024px) {
+  .studio-grid {
+    grid-template-columns: minmax(0, 1fr) 300px;
+  }
+}
+
+@media (max-width: 960px) {
+  .studio-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 640px) {
+  /* Phones: everything a little smaller and closer together, so more fits on one screen. */
+  .studio-section {
+    padding-top: 12px;
+  }
+
+  .studio {
+    padding: 12px;
+    border-radius: var(--radius-lg);
+  }
+
+  /* A shorter upload hint so the word count shares its line. */
+  .editor-toolbar .field-label {
+    white-space: nowrap;
+  }
+
+  .editor-footer {
+    padding-inline: 14px;
+  }
+
+  .editor-hint .hint-long {
+    display: none;
+  }
+
+  .editor-hint .hint-short {
+    display: inline;
+  }
+
+  .editor-textarea {
+    min-height: 168px;
+    padding: 12px 14px;
+    font-size: 15px;
+    line-height: 1.6;
+  }
+
+  .voice-panel,
+  .voice-panel-body {
+    gap: 14px;
+  }
+
+  .voice-model,
+  .btn-preview {
+    height: 42px;
+  }
+
+  .voice-model {
+    line-height: 40px;
+  }
+
+  .studio-actions,
+  .studio-result {
+    margin-top: 14px;
+  }
+
+  .btn-generate {
+    --btn-h: 50px;
+    font-size: 15.5px;
+    border-radius: 14px;
+  }
+
+  /* Phones: the voice settings use the studio card's full width instead of a box inside it. */
+  .voice-panel {
+    padding: 4px 0 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .voice-panel-head h3 .voice-panel-chevron {
+    display: block;
+  }
+
+  .voice-panel.is-collapsed .voice-panel-chevron {
+    transform: none;
+  }
+
+  .voice-panel.is-collapsed .voice-panel-body {
+    display: none;
+  }
+
+  .voice-panel-body {
+    animation: fade-in 0.25s;
+  }
+
+  .studio-shortcut {
+    display: none;
+  }
+
+  /* History: one compact row per item — play, title and details, then the three actions. */
+  .history-section {
+    padding-top: 16px;
+  }
+
+  .history-count {
+    margin-bottom: 8px;
+    font-size: 12px;
+  }
+
+  .history-list {
+    gap: 8px;
+  }
+
+  .history-item {
+    gap: 10px;
+    padding: 10px 6px 10px 10px;
+    border-radius: var(--radius);
+  }
+
+  .history-play {
+    width: 38px;
+    height: 38px;
+  }
+
+  .history-progress {
+    right: 10px;
+    bottom: 3px;
+    left: 10px;
+  }
+
+  .history-title {
+    font-size: 14px;
+  }
+
+  .history-meta {
+    gap: 2px 10px;
+    margin-top: 3px;
+    font-size: 12px;
+  }
+
+  .history-meta .chip {
+    display: none; /* the app speaks one language; the date and length are what's worth the room */
+  }
+
+  .history-actions {
+    gap: 0;
+  }
+
+  .history-actions .btn-icon {
+    width: 34px;
+    height: 34px;
+  }
+
+  .result-loading,
+  .result-error {
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 400px) {
+  /* Small phones: the editor toolbar keeps "Your text" whole, and the voice name fits beside Preview. */
+  .editor-toolbar {
+    padding-left: 12px;
+  }
+
+  .voice-model {
+    padding: 0 10px;
+    font-size: 14px;
+  }
+
+  .btn-preview {
+    padding: 0 12px;
+  }
+
+  .toolbar-actions .btn-icon {
+    width: 34px;
+    height: 34px;
+  }
+}
+
+@media (max-width: 360px) {
+  .counter [data-words],
+  .counter [data-words] + span {
+    display: none; /* room for "Upload .txt file" and the character count on one line */
+  }
+
+  /* The smallest phones: slightly smaller buttons so an item's date and length stay on one line. */
+  .history-item {
+    gap: 8px;
+  }
+
+  .history-play {
+    width: 34px;
+    height: 34px;
+  }
+
+  .history-actions .btn-icon {
+    width: 30px;
+    height: 30px;
+  }
+
+  .history-meta {
+    column-gap: 8px;
+    font-size: 11.5px;
+  }
+
+  .history-meta .icon {
+    display: none;
+  }
+
+  /* With the icons gone, a dot keeps the date and the length apart. */
+  .history-meta .meta-text + .meta-text::before {
+    content: "·";
+    margin-right: 3px;
+    color: var(--text-dim);
+  }
+}

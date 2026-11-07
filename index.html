@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EchoText — Turn Your Text Into Natural Voice</title>
+    <meta name="description" content="Turn English and Khmer text into speech on your device. Import documents, resume long recordings, and download MP3 or WAV audio." />
+    <meta name="theme-color" content="#04070a" />
+    <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Kantumruy+Pro:wght@400;500;600;700&family=Sora:wght@600;700;800&display=swap" rel="stylesheet" />
+
+    <!-- Apply the saved theme before first paint to avoid a flash. -->
+    <script>
+      (function () {
+        try {
+          var s = JSON.parse(localStorage.getItem('voiceai:settings') || '{}');
+          var t = s.theme || 'dark';
+          if (t === 'system') t = matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+          document.documentElement.setAttribute('data-theme', t === 'light' ? 'light' : 'dark');
+          if (s.uiLanguage === 'km') { document.documentElement.setAttribute('lang', 'km'); document.documentElement.className += ' ui-km'; }
+        } catch (e) {}
+      })();
+    </script>
+
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
+    <link rel="stylesheet" href="assets/css/pages.css" />
+    <link rel="stylesheet" href="assets/css/features.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#main" data-skip>Skip to content</a>
+
+    <div class="bg-fx" aria-hidden="true">
+      <div class="bg-grid"></div>
+      <div class="bg-orb orb-1"></div>
+      <div class="bg-orb orb-2"></div>
+      <div class="bg-orb orb-3"></div>
+    </div>
+
+    <header id="navbar" class="navbar"></header>
+    <main id="main" class="app-main" tabindex="-1"></main>
+
+    <div id="toast-region" class="toast-region" aria-live="polite"></div>
+    <div id="modal-root"></div>
+
+    <noscript>
+      <p style="padding:120px 24px;text-align:center;color:#e9f3f3">EchoText needs JavaScript to turn text into speech. Please enable it and reload.</p>
+    </noscript>
+
+    <!-- Core -->
+    <script defer src="assets/js/core/utils.js"></script>
+    <script defer src="assets/js/core/i18n.js"></script>
+    <script defer src="assets/js/core/i18n-km.js"></script>
+    <script defer src="assets/js/core/zip.js"></script>
+    <script defer src="assets/js/core/storage.js"></script>
+    <script defer src="assets/js/core/icons.js"></script>
+    <script defer src="assets/js/config/app-config.js"></script>
+
+    <!-- Services -->
+    <script defer src="assets/js/services/settings-service.js"></script>
+    <script defer src="assets/js/services/audio-store.js"></script>
+    <script defer src="assets/js/services/generation-store.js"></script>
+    <script defer src="assets/js/services/file-saver.js"></script>
+    <script defer src="assets/js/services/history-service.js"></script>
+    <script defer src="assets/js/services/document-import.js"></script>
+    <script defer src="assets/js/services/audio/audio-utils.js"></script>
+    <script defer src="assets/js/services/audio/audio-playback.js"></script>
+    <script defer src="assets/js/services/tts/speech-playback.js"></script>
+    <script defer src="assets/js/services/tts/browser-voices.js"></script>
+    <script defer src="assets/js/services/tts/providers/base.js"></script>
+    <script defer src="assets/js/services/tts/providers/browser.js"></script>
+    <script defer src="assets/js/services/tts/tts-service.js"></script>
+    <script defer src="assets/js/services/tts/text-segments.js"></script>
+    <script defer src="assets/js/services/tts/khmer-text.js"></script>
+    <script defer src="assets/js/services/tts/ai-voice.js"></script>
+    <script defer src="assets/js/services/audio/speech-recorder.js"></script>
+
+    <!-- UI -->
+    <script defer src="assets/js/ui/toast.js"></script>
+    <script defer src="assets/js/ui/modal.js"></script>
+    <script defer src="assets/js/ui/reveal.js"></script>
+    <script defer src="assets/js/ui/menu.js"></script>
+
+    <!-- Components -->
+    <script defer src="assets/js/components/navbar.js"></script>
+    <script defer src="assets/js/components/player.js"></script>
+    <script defer src="assets/js/components/generator.js"></script>
+    <script defer src="assets/js/components/history-list.js"></script>
+    <script defer src="assets/js/components/models-panel.js"></script>
+
+    <!-- Pages -->
+    <script defer src="assets/js/pages/home.js"></script>
+    <script defer src="assets/js/pages/not-found.js"></script>
+
+    <!-- App -->
+    <script defer src="assets/js/core/router.js"></script>
+    <script defer src="assets/js/app.js"></script>
+  </body>
+</html>

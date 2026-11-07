@@ -1,0 +1,12 @@
+{
+  "name": "echotext-studio",
+  "private": true,
+  "scripts": {
+    "test": "node --test tests/*.test.cjs",
+    "test:synthesis": "node tests/synthesis.cjs"
+  },
+  "devDependencies": {
+    "fake-indexeddb": "^6.2.7",
+    "jsdom": "^29.1.1"
+  }
+}
