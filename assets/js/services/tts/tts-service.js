@@ -27,7 +27,7 @@
       language: selected.language, gender: selected.gender, voiceId: selected.id,
       rate: within('rate'), pitch: within('pitch'), volume: 1,
       sentencePause: within('sentencePause'), paragraphPause: within('paragraphPause'),
-      ...(selected.engine === 'mms' ? { synthesisProfile: 'khmer-clear-v2' } : {}), // saved with the job (see ai-voice.js)
+      ...(selected.engine === 'mms' ? { synthesisProfile: 'khmer-clear-v3' } : {}), // saved with the job (see ai-voice.js)
     };
   }
 

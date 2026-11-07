@@ -29,7 +29,7 @@ test('Khmer preview and generation use the same clause and paragraph pauses with
   const text = 'សួស្តី, នេះជាឧទាហរណ៍; សូមស្តាប់: សំឡេងខ្មែរ។\n\nនេះជាកថាខណ្ឌទីពីរ។';
   const result = await app.TTS.generate({ ...voice, text });
   assert.equal(result.text, text);
-  assert.equal(result.synthesisProfile, 'khmer-clear-v2');
+  assert.equal(result.synthesisProfile, 'khmer-clear-v3');
   assert.equal(calls[0].rate, voice.rate, 'the visible speed setting is retained');
   assert.deepEqual(plain(calls[0].cueTexts), ['សួស្តី,', 'នេះជាឧទាហរណ៍;', 'សូមស្តាប់:', 'សំឡេងខ្មែរ។', 'នេះជាកថាខណ្ឌទីពីរ។']);
   assert.deepEqual(plain(calls[0].gaps), [0.2, 0.2, 0.2, 1.2, 0.4]);
@@ -52,14 +52,14 @@ test('resuming Khmer generation preserves continuation pauses across saved secti
   }), (error) => error.code === 'aborted');
   const [job] = await app.GenerationStore.list();
   assert.equal(job.completed, 1);
-  assert.equal(job.input.synthesisProfile, 'khmer-clear-v2');
+  assert.equal(job.input.synthesisProfile, 'khmer-clear-v3');
   assert.ok(job.sections.length > 1);
   assert.equal(job.pauses[0].at(-1), 'continuation');
   const firstPart = await app.GenerationStore.part(job.id, 0);
   assert.equal(firstPart.gapAfter, 0.08);
   const result = await app.TTS.generate({}, { resumeId: job.id });
   assert.equal(calls.length, job.sections.length, 'saved audio is reused');
-  assert.ok(calls.every((input) => input.synthesisProfile === 'khmer-clear-v2'), 'resumed sections retain the saved delivery');
+  assert.ok(calls.every((input) => input.synthesisProfile === 'khmer-clear-v3'), 'resumed sections retain the saved delivery');
   assert.equal(result.text, text);
   assert.ok(Math.abs(result.cues[firstPart.cues.length].start - firstPart.duration - 0.08) < 1 / 16000);
   assert.ok(calls.flatMap((input) => input.gaps).includes(0.2), 'a clause pause is preserved');

@@ -64,8 +64,14 @@ function speechLevel(samples, sampleRate) {
         assert.ok(Math.abs(made.cues[3].start - made.cues[2].end - 0.6) < 1 / made.sampleRate, 'a blank line uses the paragraph pause');
       }
       const original = await synthesize({ ...input, synthesisProfile: 'original' });
+      if (voice.language === 'km-KH') {
+        // khmer-clear-v3: the four phrases are spoken in one call (the browser engine loaded the model
+        // with its letter durations), then cut back into four cues.
+        assert.equal(normal.scales.length, 1, 'Khmer phrases are spoken together with their context');
+        assert.equal(original.scales.length, sample.cues, 'older deliveries still speak each phrase alone');
+      }
       for (const values of normal.scales) {
-        near(values[0], original.scales[0][0], `${voice.name}: acoustic noise remains unchanged`);
+        near(values[0], voice.language === 'km-KH' ? 0.333 : original.scales[0][0], `${voice.name}: acoustic noise (steadier for new Khmer audio)`);
         near(values[2], original.scales[0][2], `${voice.name}: duration noise remains unchanged`);
         near(values[1] / original.scales[0][1], voice.language === 'km-KH' ? 1 / 0.92 : 1, `${voice.name}: delivery profile preserves the expected length scale`);
       }

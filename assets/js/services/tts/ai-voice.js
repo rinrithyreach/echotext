@@ -61,12 +61,21 @@
   //   original        the model's own pace; each sentence scaled to its peak
   //   khmer-clear-v1  slightly slower, clearer articulation
   //   khmer-clear-v2  as v1, and every sentence equally loud (short phrases no longer jump out)
+  //   khmer-clear-v3  as v2, with sentences spoken together with their neighbours as context and
+  //                   steadier articulation (less acoustic noise)
+  // v3 was chosen by speech recognition of the result against recordings of native speakers: with
+  // context and less noise the voice is recognised far more accurately (see README, Khmer voice).
   const KHMER_PROFILES = {
     original: { rate: 1, even: false },
     'khmer-clear-v1': { rate: KHMER_CLEAR_RATE, even: false },
     'khmer-clear-v2': { rate: KHMER_CLEAR_RATE, even: true },
+    'khmer-clear-v3': { rate: KHMER_CLEAR_RATE, even: true, noise: 0.333, context: true },
   };
-  const KHMER_PROFILE = 'khmer-clear-v2'; // for new Khmer audio
+  const KHMER_PROFILE = 'khmer-clear-v3'; // for new Khmer audio
+  // The Khmer model's per-letter durations (in frames of the output), computed inside its graph. Exposed
+  // as an extra output so text spoken together can be cut back into its sentences exactly.
+  const MMS_DURATIONS = '/m/Ceil_output_0';
+  const CONTEXT_TOKENS = 380; // most tokens spoken in one call (the same budget as one sentence piece)
   const khmerProfile = (name) => KHMER_PROFILES[name] || KHMER_PROFILES.original;
   const BOS = 1;
   const EOS = 2;
@@ -429,6 +438,69 @@
     return true;
   }
 
+  /** A protobuf varint at `at`: [value, index after it]. */
+  function readVarint(bytes, at) {
+    let value = 0;
+    let scale = 1;
+    let byte;
+    do {
+      byte = bytes[at++];
+      value += (byte & 0x7f) * scale;
+      scale *= 128;
+    } while (byte & 0x80);
+    return [value, at];
+  }
+
+  function varintBytes(value) {
+    const out = [];
+    while (value > 127) {
+      out.push((value % 128) | 0x80);
+      value = Math.floor(value / 128);
+    }
+    out.push(value);
+    return out;
+  }
+
+  /**
+   * An ONNX model (ModelProto bytes) that also outputs the float tensor `name` from inside its graph,
+   * or null if the bytes don't hold a graph. Protobuf lets a repeated field such as GraphProto.output
+   * appear anywhere in its message, so the output is appended and only the graph's length changes.
+   */
+  function withGraphOutput(model, name) {
+    const bytes = new Uint8Array(model);
+    const text = new TextEncoder().encode(name);
+    // ValueInfoProto { name (1), type (2): TypeProto { tensor_type (1): { elem_type (1): FLOAT } } }
+    const info = [0x0a, ...varintBytes(text.length), ...text, 0x12, 0x04, 0x0a, 0x02, 0x08, 0x01];
+    const field = [0x62, ...varintBytes(info.length), ...info]; // GraphProto.output is field 12
+    let at = 0;
+    while (at < bytes.length) {
+      const [tag, next] = readVarint(bytes, at);
+      const wire = tag & 7;
+      if (wire === 0) at = readVarint(bytes, next)[1];
+      else if (wire === 1) at = next + 8;
+      else if (wire === 5) at = next + 4;
+      else if (wire !== 2) return null;
+      else {
+        const [length, body] = readVarint(bytes, next);
+        if (tag === 0x3a) { // ModelProto.graph is field 7
+          const prefix = varintBytes(length + field.length);
+          const out = new Uint8Array(at + 1 + prefix.length + length + field.length + (bytes.length - body - length));
+          out[at] = 0x3a;
+          out.set(bytes.subarray(0, at));
+          out.set(prefix, at + 1);
+          let to = at + 1 + prefix.length;
+          out.set(bytes.subarray(body, body + length), to);
+          to += length;
+          out.set(field, to);
+          out.set(bytes.subarray(body + length), to + field.length);
+          return out;
+        }
+        at = body + length;
+      }
+    }
+    return null;
+  }
+
   async function loadVoice(rt, voice, onProgress, signal) {
     if (loaded && loaded.id === voice.id) return loaded;
     const files = await ensureFiles(voiceFiles(voice), onProgress, signal);
@@ -436,8 +508,15 @@
     const config = JSON.parse(await files.get(`${voice.id}.onnx.json`).text());
     const model = await files.get(`${voice.id}.onnx`).arrayBuffer();
     release();
-    const session = await rt.ort.InferenceSession.create(model, { executionProviders: ['wasm'], graphOptimizationLevel: 'all' });
-    loaded = { id: voice.id, session, config };
+    const options = { executionProviders: ['wasm'], graphOptimizationLevel: 'all' };
+    let session = null;
+    if (voice.engine === 'mms') {
+      // With its letter durations the Khmer voice can speak sentences together (see inferInContext).
+      const patched = withGraphOutput(model, MMS_DURATIONS);
+      if (patched) session = await rt.ort.InferenceSession.create(patched, options).catch(() => null);
+    }
+    if (!session) session = await rt.ort.InferenceSession.create(model, options);
+    loaded = { id: voice.id, session, config, durations: (session.outputNames || []).includes(MMS_DURATIONS) };
     return loaded;
   }
 
@@ -542,9 +621,9 @@
     let lengthScale;
     let noiseW;
     if (voice.engine === 'mms') {
-      noise = config.noise_scale ?? 0.667;
-      const delivery = khmerProfile(synthesisProfile).rate;
-      lengthScale = 1 / (config.speaking_rate || 1) / rate / delivery;
+      const profile = khmerProfile(synthesisProfile);
+      noise = profile.noise ?? config.noise_scale ?? 0.667;
+      lengthScale = 1 / (config.speaking_rate || 1) / rate / profile.rate;
       noiseW = config.noise_scale_duration ?? 0.8;
     } else {
       const { inference = {} } = config;
@@ -561,7 +640,59 @@
       if (config.num_speakers > 1) feeds.sid = new ort.Tensor('int64', BigInt64Array.from([0n]), [1]);
     }
     const result = await model.session.run(feeds);
-    return result.output.data;
+    const durations = result[MMS_DURATIONS];
+    return { samples: result.output.data, durations: durations ? durations.data : null };
+  }
+
+  /**
+   * Speaks several token pieces in one call, a space between each, and cuts the audio back into the
+   * pieces. Alone, a short phrase gives the model almost nothing to go on and comes out mumbled; with
+   * its neighbours it is spoken clearly. Each letter's duration says exactly where a piece ends; the
+   * model's pause at the joining space is left out (the caller adds the pause it wants).
+   */
+  async function inferInContext(rt, model, voice, pieces, rate, synthesisProfile) {
+    const space = model.config.vocab[' '];
+    const ids = [];
+    const bounds = [];
+    pieces.forEach((piece, index) => {
+      if (index) ids.push(space);
+      bounds.push([ids.length, ids.length + piece.length]);
+      ids.push(...piece);
+    });
+    const { samples, durations } = await infer(rt, model, voice, ids, rate, synthesisProfile);
+    const frames = durations ? Array.from(durations, (d) => Math.max(0, Math.round(d))) : [];
+    const total = frames.reduce((sum, d) => sum + d, 0);
+    if (frames.length !== ids.length || !total || samples.length % total) return null; // not alignable
+    const hop = samples.length / total;
+    const starts = [0];
+    frames.forEach((d, i) => starts.push(starts[i] + d * hop));
+    const fade = Math.round(model.config.sample_rate * 0.004); // no click where the audio is cut
+    return bounds.map(([from, to]) => {
+      const part = samples.slice(starts[from], starts[to]);
+      const n = Math.min(fade, Math.floor(part.length / 2));
+      for (let i = 0; i < n; i++) {
+        part[i] *= i / n;
+        part[part.length - 1 - i] *= i / n;
+      }
+      return part;
+    });
+  }
+
+  /** Consecutive pieces grouped so each group fits one call: [[piece index, ...], ...]. */
+  function contextGroups(pieces, max = CONTEXT_TOKENS) {
+    const out = [];
+    let size = 0;
+    pieces.forEach((piece, index) => {
+      const current = out[out.length - 1];
+      if (current && size + 1 + piece.length <= max) {
+        current.push(index);
+        size += 1 + piece.length;
+      } else {
+        out.push([index]);
+        size = piece.length;
+      }
+    });
+    return out;
   }
 
   /** How loud speech is: the RMS of its 20 ms frames within 20 dB of the loudest, so pauses don't count. */
@@ -836,11 +967,14 @@
     /** Token ids for Khmer text (exposed for tests). */
     mmsTokens,
     splitMms,
+    contextGroups,
+    inferInContext,
+    withGraphOutput,
 
     /**
      * Speaks `item` ({ text | cueTexts, cueLabels?, gaps?, language, gender, voiceId, rate, pitch,
      * volume, sentencePause, synthesisProfile? }) with its AI voice.
-     * New Khmer audio uses khmer-clear-v2; saved jobs keep the profile they began with (see KHMER_PROFILES).
+     * New Khmer audio uses khmer-clear-v3; saved jobs keep the profile they began with (see KHMER_PROFILES).
      *   cueTexts   what is spoken, one entry per speech segment
      *   cueLabels  the text for each measured segment (defaults to cueTexts)
      *   gaps       seconds of silence after each cue except the last
@@ -903,6 +1037,27 @@
           parts.push(part);
           frames += part.length;
         };
+        // khmer-clear-v3 speaks neighbouring pieces in one call (inferInContext); others one call each.
+        const flat = [];
+        groups.forEach((pieces, g) => pieces.forEach((ids, p) => flat.push({ g, p, ids })));
+        const position = new Map(flat.map((entry, index) => [`${entry.g}:${entry.p}`, index]));
+        const inContext = voice.engine === 'mms' && model.durations && khmerProfile(synthesisProfile).context;
+        const batchOf = new Map();
+        if (inContext) contextGroups(flat.map((entry) => entry.ids)).forEach((batch) => batch.forEach((index) => batchOf.set(index, batch)));
+        const spoken = new Map();
+        const speak = async (g, p) => {
+          const index = position.get(`${g}:${p}`);
+          if (!spoken.has(index)) {
+            const batch = batchOf.get(index);
+            const together = batch && batch.length > 1 && await inferInContext(rt, model, voice, batch.map((i) => flat[i].ids), rate / shift, synthesisProfile);
+            if (together) batch.forEach((i, k) => spoken.set(i, together[k]));
+            else spoken.set(index, (await infer(rt, model, voice, flat[index].ids, rate / shift, synthesisProfile)).samples);
+            if (batch && !together) batch.forEach((i) => batchOf.delete(i)); // couldn't be aligned: one by one
+          }
+          const samples = spoken.get(index);
+          spoken.delete(index);
+          return samples;
+        };
         for (let group = 0; group < groups.length; group++) {
           const start = frames / sampleRate;
           const pieces = groups[group];
@@ -911,7 +1066,7 @@
             report({ phase: 'speak', loaded: finished, total });
             await nextFrame();
             if (signal && signal.aborted) throw aborted();
-            const part = normalise(await infer(rt, model, voice, pieces[p], rate / shift, synthesisProfile), gain, baseRate, level);
+            const part = normalise(await speak(group, p), gain, baseRate, level);
             if (signal && signal.aborted) throw aborted();
             push(part);
             finished++;
