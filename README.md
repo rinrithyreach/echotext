@@ -7,8 +7,8 @@ A text-to-speech web app built with plain HTML, CSS and JavaScript. It has no bu
 - **One audio file per generation:** it's made once, and the same file is used for playback, History and every download.
 - **Long texts:** up to 50,000 characters, split into sections. Progress is shown per section, and you can Cancel and Continue later, even after closing the tab.
 - **Controls:** speed and pitch.
-- **Downloads:** MP3 or WAV audio. You can edit the file name.
-- **History:** search, rename, favourites and projects, plus replay, open in the studio, download, and delete with undo.
+- **Downloads:** MP3 audio. You can edit the file name.
+- **History:** search, rename and projects, plus replay, open in the studio, download, and delete with undo.
 - **Import:** .txt, .docx and text-based .pdf. Word and PDF text is shown for checking (and editing) before it's used.
 - **Models & storage:** model sizes, download and loading progress, free storage, and Load, Unload, Repair and Remove for each voice. The device is checked before a voice loads.
 
@@ -27,11 +27,13 @@ Downloads go to the browser's download folder. To save them on the Desktop, open
 
 The English default is a [Piper](https://github.com/rhasspy/piper) voice from [rhasspy/piper-voices](https://huggingface.co/rhasspy/piper-voices). Older saved voice choices and presets fall back to the default for their speech language.
 
-**The Khmer voice is for non-commercial use only.** It is Meta's [MMS-TTS Khmer](https://huggingface.co/facebook/mms-tts-khm) model, licensed CC BY-NC 4.0, and the studio says so when it's selected. Replace it before using EchoText commercially.
+**The Khmer voice is for non-commercial use only.** It is Meta's [MMS-TTS Khmer](https://huggingface.co/facebook/mms-tts-khm) model, licensed CC BY-NC 4.0. Replace it before using EchoText commercially.
 
 ## Khmer
 
-- **Speech:** the Khmer voice reads Khmer script. Sentences end at ។ ៕ ! and ?. A full stop inside Khmer text (ក.ម.) is treated as an abbreviation. Over-long sentences are split at dictionary word breaks, because Khmer has no spaces between words.
+- **Speech:** the Khmer voice reads Khmer script. Sentences end at ។ ៕ ! and ?. Commas, semicolons, colons and ellipses add shorter phrase pauses; blank lines add paragraph pauses. A full stop inside Khmer text (ក.ម.) is treated as an abbreviation. Over-long sentences split at dictionary word boundaries, with shorter continuation pauses. Preview and Generate use the same pause rules.
+- **Pacing:** new Khmer audio uses a slightly slower delivery (92% of the model's native speaking rate), with the Speed control applied on top. This gives syllables more time without changing the voice's pitch. Existing unfinished recordings retain their saved pacing when resumed.
+- **Pronunciation cleanup:** alternate vowel spellings such as ឲ្យ are converted to spellings the bundled model supports, so the initial vowel is retained. Common typing variants such as កំុ and លេាក are normalized to កុំ and លោក using [documented Khmer encoding rules](https://www.unicode.org/notes/tn61/utn61-Khmer_Encoding_Structure_V2.pdf). Deprecated vowel characters are restored using [Unicode's documented Khmer equivalents](https://www.unicode.org/versions/Unicode17.0.0/core-spec/chapter-16/). Zero-width word breaks help split long inputs without adding a pause after every word.
 - **Numbers** in Khmer (០–៩) or Western (0–9) digits are read as Khmer words: ២០២៦ → ពីរពាន់ម្ភៃប្រាំមួយ, 1,250 → មួយពាន់ពីររយហាសិប, and 3.5% → បី ចុច ប្រាំ ភាគរយ. Numbers with a leading zero, such as phone numbers, are read digit by digit. Latin letters are skipped; write words in Khmer script for this voice.
 - **Interface:** every label, message and dialog has a Khmer translation (`assets/js/core/i18n-km.js`), using the Kantumruy Pro font. `tests/features.test.cjs` fails if a new string has no translation. The translations should be checked by a native speaker before release.
 - **Text handling:** the studio notices Khmer text typed with an English voice selected (and the reverse) and offers to switch.
@@ -88,7 +90,7 @@ assets/js/
   config/app-config.js     Speech languages, limits, voice defaults, ranges
   services/
     settings-service.js    Look, interface language, last voice, presets
-    history-service.js     History metadata, favourites, projects (localStorage)
+    history-service.js     History metadata, projects (localStorage)
     audio-store.js         History audio (IndexedDB)
     generation-store.js    Saved sections of unfinished generations (IndexedDB)
     document-import.js     .txt / .docx / .pdf → text

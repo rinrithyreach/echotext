@@ -69,7 +69,7 @@
   --radius-full: 999px;
 
   /* Typography */
-  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
+  --font-sans: "Inter", "Kantumruy Pro", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial,
     "PingFang SC", "Microsoft YaHei", "Hiragino Sans", "Yu Gothic UI", "Malgun Gothic", sans-serif;
   --font-display: "Sora", var(--font-sans);
   --font-mono: ui-monospace, "SFMono-Regular", "Cascadia Code", "JetBrains Mono", Menlo, Consolas, monospace;
@@ -494,6 +494,86 @@ p {
   transform: none;
 }
 
+/* The new theme grows from its toggle; the old page stays fully visible below it. */
+:root.is-switching-theme::view-transition,
+:root.is-switching-theme::view-transition-group(root),
+:root.is-switching-theme::view-transition-image-pair(root),
+:root.is-switching-theme::view-transition-old(root),
+:root.is-switching-theme::view-transition-new(root) {
+  pointer-events: none;
+}
+
+:root.is-switching-theme::view-transition-group(root),
+:root.is-switching-theme::view-transition-old(root),
+:root.is-switching-theme::view-transition-new(root) {
+  animation: none;
+}
+
+:root.is-switching-theme::view-transition-old(root),
+:root.is-switching-theme::view-transition-new(root) {
+  mix-blend-mode: normal;
+}
+
+:root.is-switching-theme::view-transition-old(root) {
+  z-index: 1;
+}
+
+:root.is-switching-theme::view-transition-new(root) {
+  z-index: 2;
+  animation: theme-reveal 620ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes theme-reveal {
+  from {
+    clip-path: circle(0px at var(--theme-x, 50vw) var(--theme-y, 0px));
+  }
+  to {
+    clip-path: circle(var(--theme-radius, 150vmax) at var(--theme-x, 50vw) var(--theme-y, 0px));
+  }
+}
+
+/* A surface fade keeps the switch smooth when snapshot transitions are unavailable. */
+:root.is-theme-fading body,
+:root.is-theme-fading :is(.navbar, .glass, .editor, .editor-toolbar, .editor-footer, .player, .history-item, .recovery-list, .input, .select, .segmented, .switch-track, .menu, .modal, .toast, .badge, .chip, .btn, .btn-icon, .nav-button) {
+  transition: background-color 500ms var(--ease), border-color 500ms var(--ease), color 500ms var(--ease),
+    box-shadow 500ms var(--ease), transform var(--dur) var(--ease), opacity var(--dur), filter var(--dur);
+}
+
+:root.is-theme-fading :is(h1, h2, h3, .field-label, .field-hint, .meta-text, .card-sub, .player-note, .history-count, .chip-code, .brand-name) {
+  transition: color 500ms var(--ease);
+}
+
+/* Switching the interface language (navbar.js): the page crossfades into the other language. */
+:root.is-switching-language::view-transition-old(root),
+:root.is-switching-language::view-transition-new(root) {
+  animation-duration: 0.45s;
+  animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* The language switch stays live above the crossfade, so its highlight is seen gliding across. */
+:root.is-switching-language .lang-switch {
+  view-transition-name: lang-switch;
+}
+
+::view-transition-old(lang-switch) {
+  display: none;
+}
+
+::view-transition-new(lang-switch) {
+  animation: none;
+}
+
+/* Browsers without view transitions: the page dips out and fades back in. */
+.app-main {
+  transition: opacity 0.3s var(--ease);
+}
+
+.app-main.is-language-fading {
+  opacity: 0;
+  transition-duration: 0.14s;
+  transition-timing-function: ease-out;
+}
+
 /* Phones: a shorter top bar leaves more room for the page. */
 @media (max-width: 640px) {
   :root {
@@ -502,6 +582,12 @@ p {
 }
 
 @media (prefers-reduced-motion: reduce) {
+  :root.is-switching-theme::view-transition-old(root),
+  :root.is-switching-theme::view-transition-new(root) {
+    animation: none !important;
+    clip-path: none;
+  }
+
   *,
   *::before,
   *::after {

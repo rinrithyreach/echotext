@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { pathToFileURL } = require('node:url');
+const { pathToFileURL, fileURLToPath } = require('node:url');
 const { JSDOM, VirtualConsole } = require('jsdom');
 const { IDBFactory, IDBKeyRange } = require('fake-indexeddb');
 const root = path.resolve(__dirname, '..');
@@ -42,8 +42,12 @@ function createApp() {
   });
   const scripts = fs.readFileSync(path.join(root, 'index.html'), 'utf8').matchAll(/<script defer src="([^"]+)"/g);
   for (const [, file] of scripts) {
-    if (file === 'assets/js/app.js') continue;
-    dom.window.eval(fs.readFileSync(path.join(root, file), 'utf8'));
+    const source = new URL(file, pathToFileURL(path.join(root, 'index.html')));
+    source.search = '';
+    source.hash = '';
+    const sourcePath = fileURLToPath(source);
+    if (sourcePath === path.join(root, 'assets/js/app.js')) continue;
+    dom.window.eval(fs.readFileSync(sourcePath, 'utf8'));
   }
   return { dom, window: dom.window, app: dom.window.VoiceAI, errors };
 }

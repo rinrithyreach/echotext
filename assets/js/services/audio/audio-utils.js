@@ -342,7 +342,7 @@
     const typed = sanitizeName(item.fileName);
     if (typed) return typed;
     const stamp = new Date(item.createdAt || Date.now()).toISOString().slice(0, 10);
-    return `echotext-${slugify(item.title, 32)}-${stamp}`;
+    return `${slugify(item.title, 32)}-${stamp}`;
   }
 
   function filenameFor(item, ext) {

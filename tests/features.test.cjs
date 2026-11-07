@@ -197,7 +197,7 @@ test('audio exports use the typed file name', async (t) => {
   assert.equal(saved[0].blob, result.blob);
 });
 
-test('History: favourites outlive the limit, rename, projects and search in the list', async (t) => {
+test('History: the oldest items go past the limit, rename, projects and search in the list', async (t) => {
   const { app, window } = fixture(t);
   fakeSynthesis(app);
   app.config.historyLimit = 3;
@@ -208,23 +208,24 @@ test('History: favourites outlive the limit, rename, projects and search in the 
     await app.History.add(r);
     made.push(r);
   }
-  app.History.setFavorite(made[0].id, true);
   for (let i = 3; i < 5; i++) {
     const r = await app.TTS.generate({ ...app.config.voiceDefaults, text: `Item ${i}.`, project: 'Podcast' });
     await app.History.add(r);
   }
   const ids = app.History.list().map((item) => item.id);
-  assert.ok(ids.includes(made[0].id), 'the favourite is kept');
-  assert.ok(!ids.includes(made[1].id), 'the oldest non-favourite went');
-  app.History.rename(made[0].id, '  Best   take ');
-  assert.equal(app.History.get(made[0].id).title, 'Best take');
+  assert.equal(ids.length, 3);
+  assert.ok(!ids.includes(made[0].id) && !ids.includes(made[1].id), 'the two oldest went');
+  assert.ok(ids.includes(made[2].id));
+  app.History.rename(made[2].id, '  Best   take ');
+  assert.equal(app.History.get(made[2].id).title, 'Best take');
   assert.deepEqual(plain(app.History.projects()), ['Podcast']);
-  app.History.setProject(made[0].id, '  ');
-  assert.equal(app.History.get(made[0].id).project, null, 'an empty name removes the project');
+  app.History.setProject(made[2].id, '  ');
+  assert.equal(app.History.get(made[2].id).project, null, 'an empty name removes the project');
 
   const rootEl = window.document.getElementById('root');
   const list = app.components.HistoryList.mount(rootEl);
   assert.equal(rootEl.querySelectorAll('.history-group').length, 2); // Podcast, and items without a project
+  assert.equal(rootEl.querySelector('[data-act="favorite"], [data-filter-favorites]'), null, 'no favourites');
   const search = rootEl.querySelector('[data-filter-query]');
   search.value = 'best';
   search.dispatchEvent(new window.Event('input'));
@@ -233,12 +234,10 @@ test('History: favourites outlive the limit, rename, projects and search in the 
   search.value = '';
   search.dispatchEvent(new window.Event('input'));
   await until(() => rootEl.querySelectorAll('.history-item').length === 3);
-  rootEl.querySelector('[data-filter-favorites]').click();
-  assert.equal(rootEl.querySelectorAll('.history-item').length, 1);
   let menuItems;
   app.menu.open = (_button, items) => { menuItems = items; };
   rootEl.querySelector('[data-act="more"]').click();
-  assert.deepEqual(plain(menuItems.filter((item) => !item.separator).map((item) => item.label)), ['Rename', 'Move to project…', 'Download MP3', 'Download WAV']);
+  assert.deepEqual(plain(menuItems.filter((item) => !item.separator).map((item) => item.label)), ['Rename', 'Download MP3']);
   list.destroy();
 });
 
@@ -307,6 +306,7 @@ test('studio: Khmer language uses its default voice without a pronunciation pane
   khmer.dispatchEvent(new window.Event('change', { bubbles: true }));
   const rows = [...rootEl.querySelectorAll('[data-voice-row]')];
   assert.deepEqual(plain(rows.map((row) => row.dataset.voiceRow)), ['km_KH-mms-medium']);
+  assert.equal(rows[0].querySelector('strong').textContent, 'KHMER');
   assert.ok(rows[0].classList.contains('is-selected'));
   assert.match(rows[0].querySelector('[data-voice-status]').textContent, /Default/);
   assert.equal(rootEl.querySelectorAll('[data-voice-radio]').length, 0);
@@ -322,5 +322,6 @@ test('studio: Khmer language uses its default voice without a pronunciation pane
   assert.equal(calls[0].voiceId, 'km_KH-mms-medium');
   assert.deepEqual(plain(calls[0].cueTexts), ['សួស្តី ក.ម.។']);
   assert.equal(app.History.list()[0].language, 'km-KH');
+  assert.equal(app.History.list()[0].voiceName, 'KHMER');
   studio.destroy();
 });

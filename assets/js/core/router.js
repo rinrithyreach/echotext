@@ -9,6 +9,19 @@
 
   const { scrollToId } = App.utils;
 
+  /**
+   * Shows a freshly drawn page as it already looked: scroll reveals are done and entry animations
+   * (the page fade, rows sliding in…) skip to their end. Endless ones, like spinners, keep going.
+   */
+  function settle(view) {
+    App.utils.$$('[data-reveal]', view).forEach((el) => el.classList.add('is-revealed'));
+    if (typeof view.getAnimations !== 'function') return;
+    view.getAnimations({ subtree: true }).forEach((animation) => {
+      const timing = animation.effect && animation.effect.getComputedTiming();
+      if (timing && timing.endTime !== Infinity) animation.finish();
+    });
+  }
+
   class Router {
     constructor(outlet) {
       this.outlet = outlet;
@@ -39,7 +52,13 @@
       this.resolve();
     }
 
-    resolve({ force = false } = {}) {
+    /**
+     * @param {{force?: boolean, instant?: boolean}} options
+     *   force:   redraw even if the route is unchanged
+     *   instant: redraw in place (switching the interface language): the page keeps its scroll
+     *            position and shows up as it already was, without replaying entry animations
+     */
+    resolve({ force = false, instant = false } = {}) {
       const { path, query, search } = this.parse();
       const section = query.get('section');
       const page = this.routes.get(path) || this.routes.get('*');
@@ -61,6 +80,7 @@
       }
       App.Playback.stopAll();
 
+      const scrollY = window.scrollY;
       const view = document.createElement('div');
       view.className = `page page-${page.id}`;
       this.outlet.replaceChildren(view);
@@ -75,6 +95,11 @@
 
       document.title = page.title ? `${page.title} · EchoText` : 'EchoText — Turn Your Text Into Natural Voice';
       App.bus.emit('route:change', { path, query });
+      if (instant) {
+        settle(view);
+        window.scrollTo(0, scrollY);
+        return;
+      }
       App.reveal.observe(view);
 
       if (section) {

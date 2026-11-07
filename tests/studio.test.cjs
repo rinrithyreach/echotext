@@ -156,6 +156,7 @@ test('studio default voice, generation, audio downloads and history reopening ar
   assert.deepEqual(JSON.parse(JSON.stringify(app.AIVoice.forLanguage('en-US').map((v) => v.id))), ['en_US-kristin-medium']);
   assert.equal(root.querySelectorAll('[data-voice-row]').length, 1);
   assert.equal(root.querySelector('[data-voice-row]').dataset.voiceRow, 'en_US-kristin-medium');
+  assert.equal(root.querySelector('[data-voice-row] strong').textContent, 'ENGLISH');
   assert.match(root.querySelector('[data-voice-status]').textContent, /Default/);
   assert.equal(root.querySelectorAll('[data-voice-radio]').length, 0);
   assert.equal(root.querySelectorAll('[data-preview-voice]').length, 1);
@@ -169,14 +170,16 @@ test('studio default voice, generation, audio downloads and history reopening ar
   assert.equal(app.Editing, undefined);
   assert.equal(app.components.CueEditor, undefined);
   assert.equal(root.querySelector('[data-cue-editor], .cue-editor'), null);
-  assert.match(root.textContent, /Kristin/);
-  assert.equal(root.querySelectorAll('[data-format]').length, 2);
+  assert.equal(root.querySelector('[data-voice-row] strong').textContent, 'ENGLISH');
+  assert.equal(root.querySelector('.export-format, [data-format]'), null);
+  assert.equal(root.querySelector('[data-ext]').textContent, '.mp3');
+  assert.equal(root.querySelector('[data-download-label]').textContent, 'Download MP3');
   assert.equal(root.querySelector('[data-bundle], [data-subtitle]'), null);
   assert.equal(app.AudioUtils.exportSubtitles, undefined);
   assert.equal(app.AudioUtils.exportBundle, undefined);
   assert.equal(app.TextSegments.subtitles, undefined);
-  assert.ok(root.querySelector('[data-filename]').value.startsWith('echotext-kristin-should-read'));
-  assert.equal(app.History.list()[0].voiceName, 'Kristin');
+  assert.ok(root.querySelector('[data-filename]').value.startsWith('kristin-should-read'));
+  assert.equal(app.History.list()[0].voiceName, 'ENGLISH');
   assert.equal((await app.GenerationStore.list()).length, 0);
   studio.load(app.History.list()[0]);
   assert.equal(root.querySelector('[data-cue-editor], .cue-editor'), null);
@@ -191,10 +194,12 @@ test('studio default voice, generation, audio downloads and history reopening ar
 
 test('older preferences migrate and saved browser-era audio remains playable', async (t) => {
   const { app } = fixture(t);
-  app.storage.set('settings', { engine: 'browser', lastVoice: { voiceId: 'auto', rate: 1.4, pitch: 1.1 } });
+  app.storage.set('settings', { engine: 'browser', exportFormat: 'wav', lastVoice: { voiceId: 'auto', rate: 1.4, pitch: 1.1 } });
   assert.equal(app.Settings.voice().voiceId, 'en_US-kristin-medium');
   assert.equal(app.Settings.voice().rate, 1.4);
   assert.equal(app.Settings.get().engine, 'piper');
+  assert.equal(app.Settings.get().exportFormat, undefined);
+  assert.equal(app.storage.get('settings').exportFormat, undefined);
   const played = playbackStub(app);
   const blob = new Blob(['legacy MP3'], { type: 'audio/mpeg' });
   await app.AudioStore.put('legacy', blob);
@@ -272,6 +277,40 @@ test('the actual app boots and switches interface language without losing the dr
   assert.equal(window.document.querySelector('[data-text]').value, 'Keep this draft.');
   assert.equal(app.i18n.language, 'km');
   assert.equal(window.document.querySelector('[data-batch-panel], [data-backup-panel], [data-panel="say"]'), null);
+  assert.equal(errors.length, 0, errors.map(String).join('\n'));
+  app.pages.home.unmount();
+});
+
+test('switching interface language mid-animation lands on the last language picked', async (t) => {
+  const { app, window, errors } = fixture(t);
+  const html = fs.readFileSync(path.join(root, 'index.html'), 'utf8');
+  window.document.body.innerHTML = html.match(/<body>([\s\S]*)<\/body>/)[1].replace(/<script[\s\S]*?<\/script>/g, '');
+  window.eval(fs.readFileSync(path.join(root, 'assets/js/app.js'), 'utf8'));
+  await until(() => window.document.querySelector('[data-text]'));
+  const doc = window.document;
+  const button = (code) => doc.querySelector(`[data-ui-language="${code}"]`);
+  const pill = () => doc.querySelector('.lang-switch').style.getPropertyValue('--lang-index');
+  assert.equal(pill(), '0');
+
+  button('km').click(); // the highlight moves at once; the page fades over shortly after
+  assert.equal(pill(), '1');
+  assert.equal(button('km').getAttribute('aria-pressed'), 'true');
+  assert.equal(app.i18n.language, 'en');
+  button('en').click(); // changed mind before the fade finished
+  assert.equal(pill(), '0');
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  assert.equal(app.i18n.language, 'en');
+  assert.equal(doc.documentElement.lang, 'en');
+  assert.equal(app.Settings.get().uiLanguage, 'en');
+  assert.equal(doc.getElementById('main').classList.contains('is-language-fading'), false);
+
+  button('km').click();
+  await until(() => doc.documentElement.lang === 'km');
+  assert.equal(app.Settings.get().uiLanguage, 'km');
+  assert.equal(button('km').getAttribute('aria-pressed'), 'true');
+  assert.equal(button('en').getAttribute('aria-pressed'), 'false');
+  assert.equal(doc.querySelector('.lang-switch').getAttribute('aria-label'), app.t('Interface language'));
+  assert.equal(doc.querySelector('.studio[data-reveal]').classList.contains('is-revealed'), true); // shown as it was, not revealed again
   assert.equal(errors.length, 0, errors.map(String).join('\n'));
   app.pages.home.unmount();
 });

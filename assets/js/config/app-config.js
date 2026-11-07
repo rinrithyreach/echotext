@@ -35,7 +35,7 @@
     // Largest file accepted per import type. Office and PDF files carry layout and images, so they may be bigger.
     maxFileBytes: { txt: 2 * 1024 * 1024, docx: 25 * 1024 * 1024, pdf: 40 * 1024 * 1024 },
     peaks: 72,
-    historyLimit: 100, // non-favourite items kept; favourites are never removed automatically
+    historyLimit: 100, // items kept; past this the oldest are removed
     languages: LANGUAGES,
     voiceDefaults: {
       language: 'en-US', gender: 'female', voiceId: 'en_US-kristin-medium',

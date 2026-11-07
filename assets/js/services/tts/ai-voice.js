@@ -46,15 +46,28 @@
    * One built-in default voice for each speech language.
    */
   const VOICES = [
-    { id: 'en_US-kristin-medium', name: 'Kristin', language: 'en-US', gender: 'female', engine: 'piper', path: 'en/en_US/kristin/medium', size: 63531379, configSize: 4968, bundled: true, license: 'Public domain' },
+    { id: 'en_US-kristin-medium', name: 'ENGLISH', language: 'en-US', gender: 'female', engine: 'piper', path: 'en/en_US/kristin/medium', size: 63531379, configSize: 4968, bundled: true, license: 'Public domain' },
     // Meta MMS-TTS Khmer (facebook/mms-tts-khm), converted to ONNX by tools/convert-mms-khmer.py.
-    { id: 'km_KH-mms-medium', name: 'Khmer (MMS)', language: 'km-KH', gender: 'male', engine: 'mms', size: 114237250, configSize: 945, bundled: true, license: 'CC BY-NC 4.0' },
+    { id: 'km_KH-mms-medium', name: 'KHMER', language: 'km-KH', gender: 'male', engine: 'mms', size: 114237250, configSize: 945, bundled: true, license: 'CC BY-NC 4.0' },
   ];
 
   const RUNTIME = { id: 'runtime', name: 'Speech engine', size: RUNTIME_FILES.reduce((sum, f) => sum + f.size, 0), bundled: true };
 
   const MAX_IDS = 400; // longest phoneme sequence per Piper inference step (longer sentences split at a word break)
   const PEAK = 0.9; // each sentence is normalised to this level, like Piper itself
+  const KHMER_CLEAR_RATE = 0.92; // slightly longer articulation at the voice's normal speed
+  const KHMER_LEVEL = 0.19; // speech level (see speechLevel) every Khmer sentence is brought to, never past PEAK
+  // How Khmer is delivered. A saved generation keeps the profile it started with, so resumed sections match.
+  //   original        the model's own pace; each sentence scaled to its peak
+  //   khmer-clear-v1  slightly slower, clearer articulation
+  //   khmer-clear-v2  as v1, and every sentence equally loud (short phrases no longer jump out)
+  const KHMER_PROFILES = {
+    original: { rate: 1, even: false },
+    'khmer-clear-v1': { rate: KHMER_CLEAR_RATE, even: false },
+    'khmer-clear-v2': { rate: KHMER_CLEAR_RATE, even: true },
+  };
+  const KHMER_PROFILE = 'khmer-clear-v2'; // for new Khmer audio
+  const khmerProfile = (name) => KHMER_PROFILES[name] || KHMER_PROFILES.original;
   const BOS = 1;
   const EOS = 2;
   const PAD = 0;
@@ -500,7 +513,7 @@
     return out;
   }
 
-  /** Splits a long MMS input at a space so each inference step stays a sensible size. */
+  /** Keep MMS inputs within the token budget without cutting Khmer words or stacked letters. */
   function splitMms(config, text, max = 380) {
     const out = [];
     let rest = String(text).trim();
@@ -510,10 +523,11 @@
         if (ids.length) out.push(ids);
         break;
       }
-      const limit = Math.floor((max - 1) / 2); // characters that fit
-      let cut = rest.lastIndexOf(' ', limit);
-      if (cut < limit / 3) cut = limit;
-      out.push(mmsTokens(config, rest.slice(0, cut)));
+      const limit = config.add_blank ? Math.floor((max - 1) / 2) : max;
+      const cut = App.TextSegments.cutPoint(rest, limit, 'km-KH');
+      const piece = mmsTokens(config, rest.slice(0, cut));
+      if (piece.length > max) throw new App.TTSError(t('The AI voice couldn’t read this text.'), { code: 'phonemize_failed' });
+      out.push(piece);
       rest = rest.slice(cut).trim();
     }
     return out.filter((ids) => ids.length);
@@ -521,7 +535,7 @@
 
   /* ---------- Inference ---------- */
 
-  async function infer(rt, model, voice, ids, rate) {
+  async function infer(rt, model, voice, ids, rate, synthesisProfile) {
     const { ort } = rt;
     const config = model.config;
     let noise;
@@ -529,7 +543,8 @@
     let noiseW;
     if (voice.engine === 'mms') {
       noise = config.noise_scale ?? 0.667;
-      lengthScale = 1 / (config.speaking_rate || 1) / rate;
+      const delivery = khmerProfile(synthesisProfile).rate;
+      lengthScale = 1 / (config.speaking_rate || 1) / rate / delivery;
       noiseW = config.noise_scale_duration ?? 0.8;
     } else {
       const { inference = {} } = config;
@@ -549,10 +564,39 @@
     return result.output.data;
   }
 
-  function normalise(samples, gain) {
+  /** How loud speech is: the RMS of its 20 ms frames within 20 dB of the loudest, so pauses don't count. */
+  function speechLevel(samples, sampleRate) {
+    const size = Math.max(1, Math.round(sampleRate * 0.02));
+    const powers = [];
+    let loudest = 0;
+    for (let start = 0; start < samples.length; start += size) {
+      const end = Math.min(samples.length, start + size);
+      let sum = 0;
+      for (let i = start; i < end; i++) sum += samples[i] * samples[i];
+      const power = sum / (end - start);
+      powers.push(power);
+      loudest = Math.max(loudest, power);
+    }
+    let total = 0;
+    let count = 0;
+    powers.forEach((power) => {
+      if (power < loudest * 0.01) return;
+      total += power;
+      count++;
+    });
+    return count ? Math.sqrt(total / count) : 0;
+  }
+
+  /**
+   * Scales a sentence: its peak to PEAK, or, given a speech level, its speech to that level
+   * (so sentences sound equally loud) without letting the peak pass PEAK.
+   */
+  function normalise(samples, gain, sampleRate, level = 0) {
     let peak = 0;
     for (let i = 0; i < samples.length; i++) peak = Math.max(peak, Math.abs(samples[i]));
-    const scale = (PEAK / Math.max(peak, 0.01)) * gain;
+    let scale = PEAK / Math.max(peak, 0.01);
+    if (level) scale = Math.min(scale, level / Math.max(speechLevel(samples, sampleRate), 1e-4));
+    scale *= gain;
     const out = new Float32Array(samples.length);
     for (let i = 0; i < samples.length; i++) out[i] = samples[i] * scale;
     return out;
@@ -791,10 +835,12 @@
 
     /** Token ids for Khmer text (exposed for tests). */
     mmsTokens,
+    splitMms,
 
     /**
      * Speaks `item` ({ text | cueTexts, cueLabels?, gaps?, language, gender, voiceId, rate, pitch,
-     * volume, sentencePause }) with its AI voice.
+     * volume, sentencePause, synthesisProfile? }) with its AI voice.
+     * New Khmer audio uses khmer-clear-v2; saved jobs keep the profile they began with (see KHMER_PROFILES).
      *   cueTexts   what is spoken, one entry per speech segment
      *   cueLabels  the text for each measured segment (defaults to cueTexts)
      *   gaps       seconds of silence after each cue except the last
@@ -826,11 +872,13 @@
 
         const baseRate = voice.engine === 'mms' ? model.config.sample_rate : model.config.audio.sample_rate;
         const sampleRate = Math.round(baseRate * shift);
-        const texts = item.cueTexts || App.TextSegments.cues(item.text, undefined, voice.language);
+        const units = item.cueTexts ? null : App.TextSegments.units(item.text, undefined, voice.language);
+        const texts = item.cueTexts || units.map((unit) => unit.text);
         const labels = item.cueLabels || texts;
+        const gaps = item.gaps || (units && units.map((unit) => App.TextSegments.pauseFor(unit, item)));
         let groups;
         if (voice.engine === 'mms') {
-          groups = texts.map((text) => splitMms(model.config, App.KhmerText.normalize(text)));
+          groups = texts.map((text) => splitMms(model.config, App.KhmerText.normalize(text, { preserveWordBreaks: true })));
           if (!groups.some((pieces) => pieces.length)) {
             throw new App.TTSError(t('The Khmer voice reads Khmer script. Add Khmer text, or choose an English voice.'), { code: 'phonemize_failed' });
           }
@@ -842,6 +890,8 @@
         const total = groups.reduce((sum, pieces) => sum + pieces.length, 0);
 
         const rate = App.utils.clamp(Number(item.rate) || 1, 0.5, 2);
+        const synthesisProfile = item.synthesisProfile || KHMER_PROFILE;
+        const level = voice.engine === 'mms' && khmerProfile(synthesisProfile).even ? KHMER_LEVEL : 0;
         const gain = App.utils.clamp(item.volume ?? 1, 0, 1);
         const sentencePause = Number.isFinite(Number(item.sentencePause)) ? Math.max(0, Number(item.sentencePause)) : DEFAULT_GAP;
         const silence = (seconds) => new Float32Array(Math.round(sampleRate * seconds));
@@ -861,15 +911,18 @@
             report({ phase: 'speak', loaded: finished, total });
             await nextFrame();
             if (signal && signal.aborted) throw aborted();
-            const part = normalise(await infer(rt, model, voice, pieces[p], rate / shift), gain);
+            const part = normalise(await infer(rt, model, voice, pieces[p], rate / shift, synthesisProfile), gain, baseRate, level);
             if (signal && signal.aborted) throw aborted();
             push(part);
             finished++;
-            if (p < pieces.length - 1) push(silence(Math.min(sentencePause, DEFAULT_GAP))); // an over-long sentence split in two
+            if (p < pieces.length - 1) {
+              const gap = voice.engine === 'mms' ? App.TextSegments.pauseFor({ pauseAfter: 'continuation' }, item) : Math.min(sentencePause, DEFAULT_GAP);
+              push(silence(gap));
+            }
           }
           cues.push({ text: labels[group], start, end: frames / sampleRate });
           if (group < groups.length - 1) {
-            const gap = item.gaps && Number.isFinite(item.gaps[group]) ? item.gaps[group] : sentencePause;
+            const gap = gaps && Number.isFinite(gaps[group]) ? gaps[group] : sentencePause;
             push(silence(Math.max(0, gap)));
           }
         }

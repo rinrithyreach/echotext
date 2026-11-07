@@ -1010,6 +1010,94 @@ kbd {
   transform: rotate(18deg);
 }
 
+/* Both icons stay mounted so switching themes can morph between them. */
+.nav-button.theme-toggle {
+  position: relative;
+  isolation: isolate;
+  transition: color var(--dur), background-color var(--dur), box-shadow 320ms var(--ease);
+}
+
+.theme-toggle::before {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+  border-radius: inherit;
+  background: radial-gradient(circle, var(--accent-soft), transparent 72%);
+  opacity: 0;
+  transform: scale(0.7);
+  pointer-events: none;
+  transition: opacity 320ms var(--ease), transform 420ms var(--ease);
+}
+
+.nav-button.theme-toggle:is(:hover, :focus-visible) {
+  color: var(--accent-text);
+  background-color: var(--accent-softer);
+  box-shadow: inset 0 0 0 1px var(--accent-border), 0 0 22px -7px var(--accent-ring);
+}
+
+.theme-toggle:is(:hover, :focus-visible)::before {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.theme-toggle:active::before {
+  opacity: 1;
+  transform: scale(1.15);
+}
+
+.theme-toggle .theme-icon {
+  grid-area: 1 / 1;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  pointer-events: none;
+  transform-origin: center;
+  transition: opacity 420ms var(--ease), transform 420ms var(--ease-spring), filter 420ms var(--ease);
+}
+
+.theme-toggle .theme-icon-sun {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+  filter: blur(0px);
+}
+
+.theme-toggle .theme-icon-moon {
+  opacity: 0;
+  transform: rotate(-100deg) scale(0.45);
+  filter: blur(3px);
+}
+
+:root[data-theme="light"] .theme-toggle .theme-icon-sun {
+  opacity: 0;
+  transform: rotate(100deg) scale(0.45);
+  filter: blur(3px);
+}
+
+:root[data-theme="light"] .theme-toggle .theme-icon-moon {
+  opacity: 1;
+  transform: rotate(0deg) scale(1);
+  filter: blur(0px);
+}
+
+.nav-button.theme-toggle .theme-icon .icon,
+.nav-button.theme-toggle:hover .theme-icon .icon {
+  transform: none;
+  transition: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .theme-toggle::before,
+  .theme-toggle .theme-icon {
+    transition: none;
+  }
+
+  .theme-toggle .theme-icon {
+    filter: none;
+  }
+}
+
 /* ---------- Toasts ---------- */
 .toast-region {
   position: fixed;

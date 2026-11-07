@@ -77,8 +77,10 @@
   border: 0;
   outline: 0;
   resize: vertical;
+  /* The script chooses its glyphs; changing the speech voice must not change the typography. */
+  font-family: "Inter", "Kantumruy Pro", system-ui, -apple-system, "Segoe UI", "Khmer OS System", "Leelawadee UI", sans-serif;
   font-size: 16px;
-  line-height: 1.75;
+  line-height: 2;
   color: var(--text);
   background: transparent;
 }
@@ -933,7 +935,6 @@
     min-height: 168px;
     padding: 12px 14px;
     font-size: 15px;
-    line-height: 1.6;
   }
 
   .voice-panel,

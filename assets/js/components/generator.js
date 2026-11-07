@@ -506,7 +506,6 @@
           check.errors.forEach((message) => notes.push(['error', 'x-circle', message]));
           check.warnings.forEach((message) => notes.push(['warning', 'alert-triangle', message]));
         }
-        if (voice.license && /NC/.test(voice.license)) notes.push(['info', 'info', t('{name} is licensed {license}: free for non-commercial use only.', { name: voice.name, license: voice.license })]);
       }
       el.notes.innerHTML = notes
         .map(([type, iconName, message, action]) => `<div class="note note-${type}">${icon(iconName, 15)}<span>${escapeHtml(message)}${action ? ` <button type="button" class="link-button" data-note-action="${action}">${escapeHtml(t(action === 'use-khmer' ? 'Use Khmer' : 'Use English'))}</button>` : ''}</span></div>`)

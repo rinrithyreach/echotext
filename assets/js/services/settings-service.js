@@ -27,7 +27,7 @@
       out.engine = DEFAULTS.engine;
       changed = true;
     }
-    ['downloadFormat', 'saveLocation', 'voiceDefaults', 'aiVoices', 'historyLimit', 'autoplay', 'saveHistory'].forEach((key) => {
+    ['downloadFormat', 'exportFormat', 'saveLocation', 'voiceDefaults', 'aiVoices', 'historyLimit', 'autoplay', 'saveHistory'].forEach((key) => {
       // Downloads are always MP3, saved through the browser; the studio's Reset uses the built-in voice defaults;
       // each speech language has one default voice; History always keeps 100 items (config.historyLimit);
       // new audio always plays right away and is always saved to History.

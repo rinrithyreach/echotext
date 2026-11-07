@@ -1,7 +1,7 @@
 /**
  * EchoText — Audio history
  * The list of generated audio shown under the studio on the home page:
- * search, favourites, projects (grouped), rename, play, open in the studio,
+ * search, projects (grouped), rename, play, open in the studio,
  * download audio and delete with undo. It stays hidden
  * until something has been generated.
  */
@@ -15,7 +15,7 @@
   const ALL = '__all__';
   const NONE = '__none__';
 
-  const state = { activeId: null, playback: null, filter: { query: '', project: ALL, favorites: false } };
+  const state = { activeId: null, playback: null, filter: { query: '', project: ALL } };
   const shown = new Set(); // ids already in the list: only rows that are new slide in
 
   /** History, newest first. */
@@ -24,8 +24,7 @@
   }
 
   function matches(item) {
-    const { query, project, favorites } = state.filter;
-    if (favorites && !item.favorite) return false;
+    const { query, project } = state.filter;
     if (project === NONE && item.project) return false;
     if (project !== ALL && project !== NONE && item.project !== project) return false;
     if (!query) return true;
@@ -50,11 +49,9 @@
     const lang = App.config.getLanguage(item.language);
     const active = state.activeId === item.id;
     const playing = active && state.playback && state.playback.state === 'playing';
-    const format = App.Settings.get().exportFormat === 'wav' ? 'WAV' : 'MP3';
-    const downloadTip = t('Download {format}', { format });
-    const favTip = t(item.favorite ? 'Remove from favourites' : 'Add to favourites');
+    const downloadTip = t('Download MP3');
     return `
-      <article class="history-item glass${isNew ? ' is-new' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}${item.favorite ? ' is-favorite' : ''}" data-id="${item.id}"${isNew ? ` style="animation-delay:${Math.min(index, 10) * 35}ms"` : ''}>
+      <article class="history-item glass${isNew ? ' is-new' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}" data-id="${item.id}"${isNew ? ` style="animation-delay:${Math.min(index, 10) * 35}ms"` : ''}>
         <button class="history-play" type="button" data-act="play" aria-label="${escapeHtml(t(playing ? 'Pause {title}' : 'Play {title}', { title: item.title }))}">
           ${icon(playing ? 'pause' : 'play', 18)}
         </button>
@@ -70,8 +67,6 @@
           <div class="history-progress"><span></span></div>
         </div>
         <div class="history-actions">
-          <button class="btn-icon is-accent history-fav" type="button" data-act="favorite" aria-pressed="${!!item.favorite}"
-            data-tooltip="${escapeHtml(favTip)}" aria-label="${escapeHtml(favTip)}">${icon('star', 17)}</button>
           <button class="btn-icon is-accent" type="button" data-act="download"
             data-tooltip="${escapeHtml(downloadTip)}" aria-label="${escapeHtml(downloadTip)}">${icon('download', 17)}</button>
           <button class="btn-icon is-accent" type="button" data-act="open" data-tooltip="${escapeHtml(t('Open in studio'))}" aria-label="${escapeHtml(t('Open in studio'))}">${icon('pencil', 17)}</button>
@@ -92,9 +87,9 @@
   }
 
   /** What's drawn: changes to any of this redraw the list; anything else updates rows in place. */
-  const signature = (groups) => JSON.stringify([App.Settings.get().exportFormat, groups.map((g) => [g.name, g.items.map((i) => [i.id, i.title, !!i.favorite, i.project || '', i.voiceName])])]);
+  const signature = (groups) => JSON.stringify(groups.map((g) => [g.name, g.items.map((i) => [i.id, i.title, i.project || '', i.voiceName])]));
 
-  function renderToolbar(root, items) {
+  function renderToolbar(root) {
     const projects = App.History.projects();
     const select = $('[data-filter-project]', root);
     if (state.filter.project !== ALL && state.filter.project !== NONE && !projects.includes(state.filter.project)) state.filter.project = ALL;
@@ -109,15 +104,12 @@
     }
     select.value = state.filter.project;
     select.closest('.history-filter-project').hidden = !projects.length;
-    const fav = $('[data-filter-favorites]', root);
-    fav.setAttribute('aria-pressed', String(state.filter.favorites));
-    fav.hidden = !items.some((item) => item.favorite) && !state.filter.favorites;
   }
 
   function renderList(root) {
     const items = sorted();
     root.hidden = !items.length; // nothing generated yet: no history section at all
-    renderToolbar(root, items);
+    renderToolbar(root);
     const groups = groupsOf(items);
     const visible = groups.reduce((sum, g) => sum + g.items.length, 0);
     const filtered = visible !== items.length;
@@ -276,25 +268,11 @@
     }
   }
 
-  async function moveToProject(item) {
-    const name = await App.modal.prompt({
-      title: t('Move to project'), label: t('Project name'), value: item.project || '', icon: 'folder',
-      message: t('Pick an existing project or type a new name. Leave it empty to remove it from its project.'),
-      suggestions: App.History.projects(), maxLength: 60, confirmText: t('Move'),
-    });
-    if (name === null) return;
-    App.History.setProject(item.id, name);
-    const project = App.History.get(item.id).project;
-    App.toast.success(project ? t('Moved to {project}', { project }) : t('Removed from its project'), item.title);
-  }
-
   function openMenu(item, button) {
     App.menu.open(button, [
       { label: t('Rename'), icon: 'pencil', onSelect: () => rename(item) },
-      { label: t('Move to project…'), icon: 'folder', onSelect: () => moveToProject(item) },
       { separator: true },
       { label: t('Download MP3'), icon: 'download', onSelect: () => App.AudioUtils.exportAudio(item, button, 'mp3') },
-      { label: t('Download WAV'), icon: 'download', onSelect: () => App.AudioUtils.exportAudio(item, button, 'wav') },
     ]);
   }
 
@@ -303,7 +281,8 @@
    * @param {{onOpen?: (item: object) => void}} options  onOpen: "Open in studio" was pressed on an item
    */
   function mount(root, { onOpen } = {}) {
-    state.filter = { query: '', project: ALL, favorites: false, ...(App.storage.session.get(FILTER_KEY, {}) || {}) };
+    const saved = App.storage.session.get(FILTER_KEY, {}) || {};
+    state.filter = { query: saved.query || '', project: saved.project || ALL }; // the filters picked earlier this session
     root.innerHTML = `
       <div class="history-head">
         <h2 class="history-heading">${icon('history', 18)} ${escapeHtml(t('History'))}</h2>
@@ -318,7 +297,6 @@
           <span class="sr-only">${escapeHtml(t('Project'))}</span>
           <select class="select input-sm" data-filter-project></select>
         </label>
-        <button type="button" class="btn btn-outline btn-sm history-filter-fav" data-filter-favorites aria-pressed="false">${icon('star', 15)} ${escapeHtml(t('Favourites'))}</button>
       </div>
       <div class="history-list" data-list></div>`;
     shown.clear(); // a fresh list: every row slides in once
@@ -335,11 +313,6 @@
       saveFilter();
       renderList(root);
     });
-    $('[data-filter-favorites]', root).addEventListener('click', () => {
-      state.filter.favorites = !state.filter.favorites;
-      saveFilter();
-      renderList(root);
-    });
 
     $('[data-list]', root).addEventListener('click', (event) => {
       const action = event.target.closest('[data-act]');
@@ -351,11 +324,8 @@
         case 'play':
           togglePlay(root, item, action);
           break;
-        case 'favorite':
-          App.History.setFavorite(item.id, !item.favorite);
-          break;
         case 'download':
-          App.AudioUtils.exportAudio(item, action, App.Settings.get().exportFormat === 'wav' ? 'wav' : 'mp3');
+          App.AudioUtils.exportAudio(item, action, 'mp3');
           break;
         case 'more':
           openMenu(item, action);
@@ -376,16 +346,11 @@
       renderList(root);
       if (state.activeId && state.playback) setRowState(root, state.activeId, state.playback.state === 'playing');
     });
-    // Rows name the download format in their tooltip.
-    const offFormat = App.bus.on('settings:change', ({ patch }) => {
-      if ('exportFormat' in patch) renderList(root);
-    });
     renderList(root);
 
     return {
       destroy() {
         off();
-        offFormat();
         onQuery.cancel();
         App.menu.close();
         if (state.playback) state.playback.destroy();

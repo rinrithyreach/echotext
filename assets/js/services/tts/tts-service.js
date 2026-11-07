@@ -9,9 +9,9 @@
 
   /** Seconds of silence after each cue of section `index` (the last one is the gap before the next section). */
   function gapsFor(job, index) {
-    const { sentencePause = 0.2, paragraphPause = 0.2 } = job.input;
     const ends = (job.breaks && job.breaks[index]) || [];
-    return job.sections[index].map((_, j) => (ends[j] ? paragraphPause : sentencePause));
+    const pauses = (job.pauses && job.pauses[index]) || [];
+    return job.sections[index].map((_, j) => App.TextSegments.pauseFor({ paragraphEnd: ends[j], pauseAfter: pauses[j] }, job.input));
   }
 
   /** Voice settings from the studio, each kept within its range. */
@@ -27,6 +27,7 @@
       language: selected.language, gender: selected.gender, voiceId: selected.id,
       rate: within('rate'), pitch: within('pitch'), volume: 1,
       sentencePause: within('sentencePause'), paragraphPause: within('paragraphPause'),
+      ...(selected.engine === 'mms' ? { synthesisProfile: 'khmer-clear-v2' } : {}), // saved with the job (see ai-voice.js)
     };
   }
 
@@ -66,10 +67,10 @@
         } else {
           const voice = voiceSettings(input);
           const text = this.validate(input.text, voice.language);
-          const { sections, breaks } = App.TextSegments.plan(text, voice.language);
+          const { sections, breaks, pauses } = App.TextSegments.plan(text, voice.language);
           job = {
             id: uid('aud'), title: titleFromText(text), input: { text, ...voice },
-            sections, breaks, completed: 0, createdAt: Date.now(), project: input.project || null,
+            sections, breaks, pauses, completed: 0, createdAt: Date.now(), project: input.project || null,
           };
           await App.GenerationStore.create(job);
         }
@@ -88,7 +89,9 @@
           report({ phase: 'load' });
           const labels = job.sections[index];
           const gaps = gapsFor(job, index);
-          const made = await App.AIVoice.synthesize({ ...job.input, text: labels.join(' '), cueTexts: labels, cueLabels: labels, gaps }, { signal, onProgress: report });
+          // Older checkpoints keep their original delivery when unfinished sections resume.
+          const synthesisProfile = job.input.synthesisProfile || 'original';
+          const made = await App.AIVoice.synthesize({ ...job.input, synthesisProfile, text: labels.join(' '), cueTexts: labels, cueLabels: labels, gaps }, { signal, onProgress: report });
           check(signal);
           const part = {
             index, blob: App.AudioUtils.encodeWavChannels([made.samples], made.sampleRate),
@@ -144,8 +147,10 @@
     async preview(voice, { signal, text, onProgress } = {}) {
       const settings = voiceSettings(voice);
       const sample = text || App.config.getLanguage(settings.language).sample;
-      const labels = App.TextSegments.cues(sample, undefined, settings.language);
-      const made = await App.AIVoice.synthesize({ ...settings, text: labels.join(' '), cueTexts: labels, cueLabels: labels }, { signal, onProgress });
+      const units = App.TextSegments.units(sample, undefined, settings.language);
+      const labels = units.map((unit) => unit.text);
+      const gaps = units.map((unit) => App.TextSegments.pauseFor(unit, settings));
+      const made = await App.AIVoice.synthesize({ ...settings, text: labels.join(' '), cueTexts: labels, cueLabels: labels, gaps }, { signal, onProgress });
       check(signal);
       return new App.AudioPlayback(App.AudioUtils.encodeWavChannels([made.samples], made.sampleRate), { duration: made.duration });
     },

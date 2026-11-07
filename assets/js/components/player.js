@@ -24,14 +24,10 @@
     return `${icon('info', 15)}<span>${escapeHtml(t('This browser can’t run the AI voice, so Download records this voice while it plays.'))}</span>`;
   }
 
-  /** The audio format downloads use, remembered between visits. */
-  const exportFormat = () => (App.Settings.get().exportFormat === 'wav' ? 'wav' : 'mp3');
-
   function template(item, uid) {
     const lang = App.config.getLanguage(item.language);
     const isLive = item.engine === 'browser' && !item.blob && !item.hasAudio;
     const peaks = item.peaks || App.AudioUtils.textPeaks(item.text, App.config.peaks);
-    const format = exportFormat();
 
     return `
       <div class="player" data-player>
@@ -48,7 +44,7 @@
           </div>
           <div class="player-dl">
             <button class="btn btn-outline btn-sm" type="button" data-download aria-label="${escapeHtml(t('Download audio'))}">
-              <span>${icon('download', 16)}</span><span data-download-label>${escapeHtml(t('Download {format}', { format: format.toUpperCase() }))}</span>
+              <span>${icon('download', 16)}</span><span data-download-label>${escapeHtml(t('Download MP3'))}</span>
             </button>
           </div>
         </div>
@@ -73,13 +69,7 @@
               <label class="field-label" for="export-name-${uid}">${icon('pencil', 14)} ${escapeHtml(t('File name'))}</label>
               <div class="input-suffix">
                 <input class="input input-sm" id="export-name-${uid}" data-filename value="${escapeHtml(App.AudioUtils.baseNameFor(item))}" maxlength="80" autocomplete="off" spellcheck="false" />
-                <span class="input-suffix-text" data-ext>.${format}</span>
-              </div>
-            </div>
-            <div class="field export-format">
-              <span class="field-label" id="export-format-${uid}">${escapeHtml(t('Audio format'))}</span>
-              <div class="segmented segmented-2" role="radiogroup" aria-labelledby="export-format-${uid}">
-                ${['mp3', 'wav'].map((f) => `<label class="segmented-item"><input type="radio" name="export-format-${uid}" value="${f}" data-format${f === format ? ' checked' : ''} /><span>${f.toUpperCase()}</span></label>`).join('')}
+                <span class="input-suffix-text" data-ext>.mp3</span>
               </div>
             </div>
           </div>
@@ -232,17 +222,11 @@
         commitName();
       }
     });
-    root.querySelectorAll('[data-format]').forEach((radio) => radio.addEventListener('change', () => {
-      if (!radio.checked) return;
-      App.Settings.update({ exportFormat: radio.value });
-      $('[data-ext]', root).textContent = `.${radio.value}`;
-      $('[data-download-label]', root).textContent = t('Download {format}', { format: radio.value.toUpperCase() });
-    }));
     const withName = (fn) => (event) => {
       commitName();
       fn(event.currentTarget);
     };
-    $('[data-download]', root).addEventListener('click', withName((button) => App.AudioUtils.exportAudio(item, button, exportFormat())));
+    $('[data-download]', root).addEventListener('click', withName((button) => App.AudioUtils.exportAudio(item, button, 'mp3')));
 
     paint(0, 0, item.duration, item.isEstimate);
     if (autoplay) ensurePlayback().then((pb) => pb.play()).catch(() => {});

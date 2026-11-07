@@ -45,7 +45,6 @@
         volume: result.volume,
         sentencePause: result.sentencePause,
         paragraphPause: result.paragraphPause,
-        favorite: !!result.favorite,
         project: cleanProject(result.project),
         fileName: result.fileName || null,
         duration: result.duration,
@@ -64,11 +63,8 @@
       }
 
       const items = [item, ...this.list().filter((existing) => existing.id !== item.id)];
-      // Past the limit, the oldest items that aren't favourites go first; favourites are always kept.
-      const removed = [];
-      for (let i = items.length - 1; !preserveHistory && i >= 0 && items.length > App.config.historyLimit; i--) {
-        if (!items[i].favorite) removed.push(...items.splice(i, 1));
-      }
+      // Past the limit, the oldest items go.
+      const removed = preserveHistory ? [] : items.splice(App.config.historyLimit);
       this._save(items);
       removed.forEach((old) => old.hasAudio && App.AudioStore.delete(old.id).catch(() => {}));
       return item;
@@ -94,10 +90,6 @@
       const value = String(title || '').replace(/\s+/g, ' ').trim().slice(0, 120);
       if (!value) throw new Error(App.t('Give it a name.'));
       this.update(id, { title: value });
-    },
-
-    setFavorite(id, favorite) {
-      this.update(id, { favorite: !!favorite });
     },
 
     /** Moves an item into a project (null: no project). */

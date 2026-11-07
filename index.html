@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>EchoText — Turn Your Text Into Natural Voice</title>
-    <meta name="description" content="Turn English and Khmer text into speech on your device. Import documents, resume long recordings, and download MP3 or WAV audio." />
+    <meta name="description" content="Turn English and Khmer text into speech on your device. Import documents, resume long recordings, and download MP3 audio." />
     <meta name="theme-color" content="#04070a" />
     <link rel="icon" href="assets/img/favicon.svg" type="image/svg+xml" />
 
@@ -25,10 +25,10 @@
       })();
     </script>
 
-    <link rel="stylesheet" href="assets/css/base.css" />
-    <link rel="stylesheet" href="assets/css/components.css" />
-    <link rel="stylesheet" href="assets/css/pages.css" />
-    <link rel="stylesheet" href="assets/css/features.css" />
+    <link rel="stylesheet" href="assets/css/base.css?v=20261107-font-1" />
+    <link rel="stylesheet" href="assets/css/components.css?v=20261107-theme-1" />
+    <link rel="stylesheet" href="assets/css/pages.css?v=20261107-font-1" />
+    <link rel="stylesheet" href="assets/css/features.css?v=20261107-font-1" />
   </head>
   <body>
     <a class="skip-link" href="#main" data-skip>Skip to content</a>
@@ -72,10 +72,11 @@
     <script defer src="assets/js/services/tts/browser-voices.js"></script>
     <script defer src="assets/js/services/tts/providers/base.js"></script>
     <script defer src="assets/js/services/tts/providers/browser.js"></script>
-    <script defer src="assets/js/services/tts/tts-service.js"></script>
-    <script defer src="assets/js/services/tts/text-segments.js"></script>
-    <script defer src="assets/js/services/tts/khmer-text.js"></script>
-    <script defer src="assets/js/services/tts/ai-voice.js"></script>
+    <!-- Keep the speech pipeline on the same version so cached helpers match their callers. -->
+    <script defer src="assets/js/services/tts/text-segments.js?v=20261107-voices-2"></script>
+    <script defer src="assets/js/services/tts/khmer-text.js?v=20261107-voices-2"></script>
+    <script defer src="assets/js/services/tts/ai-voice.js?v=20261107-voices-2"></script>
+    <script defer src="assets/js/services/tts/tts-service.js?v=20261107-voices-2"></script>
     <script defer src="assets/js/services/audio/speech-recorder.js"></script>
 
     <!-- UI -->
@@ -85,7 +86,7 @@
     <script defer src="assets/js/ui/menu.js"></script>
 
     <!-- Components -->
-    <script defer src="assets/js/components/navbar.js"></script>
+    <script defer src="assets/js/components/navbar.js?v=20261107-theme-1"></script>
     <script defer src="assets/js/components/player.js"></script>
     <script defer src="assets/js/components/generator.js"></script>
     <script defer src="assets/js/components/history-list.js"></script>
