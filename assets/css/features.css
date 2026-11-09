@@ -811,9 +811,10 @@
   .range::-moz-range-thumb { height: 44px; }
 }
 
+/* Phones keep the wordmark, set a little smaller so it fits beside the controls down to 320px. */
 @media (max-width: 480px) {
   .nav { gap: 8px; }
-  .brand-name { display: none; }
+  .brand { gap: 8px; font-size: 16px; letter-spacing: 0.05em; }
 }
 
 @media (max-width: 640px) {
