@@ -121,17 +121,11 @@ test('saved History IDs are rendered as data even when they contain markup and C
   list.destroy();
 });
 
-test('navbar exposes Models & storage and reports a failed language save', (t) => {
+test('navbar reports a failed language save', (t) => {
   const { app, window, errors } = fixture(t);
   app.Theme.init();
   const root = window.document.getElementById('root');
   app.components.Navbar.mount(root);
-  let opened = 0;
-  app.components.ModelsPanel.open = () => { opened++; };
-  const models = root.querySelector('[data-models-open]');
-  assert.equal(models.getAttribute('aria-label'), app.t('Models & storage'));
-  models.click();
-  assert.equal(opened, 1);
   app.storage.set = () => false;
   root.querySelector('[data-ui-language="km"]').click();
   assert.equal(app.i18n.language, 'en');
@@ -168,38 +162,3 @@ test('a queued studio section focus is cancelled when navigating away', async (t
   assert.equal(errors.length, 0, errors.map(String).join('\n'));
 });
 
-test('model actions lock while awaiting device checks, including after a status redraw', async (t) => {
-  const { app, window, errors } = fixture(t);
-  let resolveCheck;
-  let checks = 0;
-  let loaded = 0;
-  app.AIVoice.checkDevice = () => { checks++; return new Promise((resolve) => { resolveCheck = resolve; }); };
-  app.AIVoice.load = async () => { loaded++; };
-  const done = app.components.ModelsPanel.open();
-  const selector = '[data-model-act="load"][data-model="en_US-kristin-medium"]';
-  await until(() => window.document.querySelector(selector));
-  const load = window.document.querySelector(selector);
-  load.click();
-  load.click();
-  assert.equal(checks, 1);
-  app.bus.emit('models:change');
-  await new Promise((resolve) => setTimeout(resolve, 200));
-  assert.equal(window.document.querySelector(selector).disabled, true);
-  window.document.querySelector(selector).click();
-  assert.equal(checks, 1);
-  resolveCheck({ ok: true, warnings: [], errors: [] });
-  await until(() => loaded === 1 && !window.document.querySelector(selector).disabled);
-  window.document.querySelector('[data-modal="cancel"]').click();
-  await done;
-  assert.equal(errors.length, 0, errors.map(String).join('\n'));
-});
-
-test('a failed Models status read is reported instead of leaving an unhandled rejection', async (t) => {
-  const { app, window } = fixture(t);
-  app.AIVoice.status = async () => { throw new Error('Cannot inspect storage'); };
-  const done = app.components.ModelsPanel.open();
-  await until(() => window.document.querySelector('.toast-error'));
-  assert.match(window.document.querySelector('[data-models]').textContent, /Something went wrong/);
-  window.document.querySelector('[data-modal="cancel"]').click();
-  await done;
-});

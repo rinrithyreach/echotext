@@ -147,7 +147,6 @@
     'Main': 'មេនុយមេ',
     'Male': 'ប្រុស',
     'Memory': 'អង្គចងចាំ',
-    'Models & storage': 'ម៉ូដែល និងទំហំផ្ទុក',
     'Modern JavaScript': 'JavaScript ទំនើប',
     'More': 'ច្រើនទៀត',
     'More actions for {title}': 'សកម្មភាពបន្ថែមសម្រាប់ {title}',
