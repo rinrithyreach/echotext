@@ -164,25 +164,48 @@
       title: t('Models & storage'), details, wide: true, icon: 'database', confirmText: null, cancelText: t('Close'),
       onOpen(close, dialog) {
         let closed = false;
+        let renderId = 0;
+        const pending = new Set();
         const render = async () => {
-          const [device, models] = await Promise.all([deviceHtml(), modelsHtml()]);
-          if (closed) return;
-          const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset : {};
-          $('[data-device]', dialog).innerHTML = device;
-          $('[data-models]', dialog).innerHTML = models;
-          // Keep keyboard focus on the same button after a redraw.
-          if (focused.modelAct) {
-            const again = $(`[data-model-act="${focused.modelAct}"]${focused.model ? `[data-model="${focused.model}"]` : ''}`, dialog)
-              || $(`[data-model-row="${focused.model}"] [data-model-act]`, dialog);
-            if (again) again.focus();
+          const id = ++renderId;
+          try {
+            const [device, models] = await Promise.all([deviceHtml(), modelsHtml()]);
+            if (closed || id !== renderId) return;
+            const focused = document.activeElement && document.activeElement.dataset ? document.activeElement.dataset : {};
+            $('[data-device]', dialog).innerHTML = device;
+            $('[data-models]', dialog).innerHTML = models;
+            // Device checks and confirmation dialogs can precede a model's activity event.
+            dialog.querySelectorAll('[data-model-act]').forEach((button) => {
+              if (pending.has(button.dataset.model || button.dataset.modelAct)) button.disabled = true;
+            });
+            // Keep keyboard focus on the same button after a redraw.
+            if (focused.modelAct) {
+              const again = $(`[data-model-act="${focused.modelAct}"]${focused.model ? `[data-model="${focused.model}"]` : ''}`, dialog)
+                || $(`[data-model-row="${focused.model}"] [data-model-act]`, dialog);
+              if (again) again.focus();
+            }
+          } catch (err) {
+            if (closed || id !== renderId) return;
+            App.toast.error(t('Something went wrong'), err.message);
+            for (const selector of ['[data-device]', '[data-models]']) {
+              const area = $(selector, dialog);
+              if (!area.querySelector('ul')) area.textContent = t('Something went wrong');
+            }
           }
         };
         const later = debounce(render, 150);
         dialog.addEventListener('click', (event) => {
           const button = event.target.closest('[data-model-act]');
           if (!button || button.disabled) return;
+          const key = button.dataset.model || button.dataset.modelAct;
+          if (pending.has(key)) return;
+          pending.add(key);
+          App.utils.setBusy(button, true);
           const model = button.dataset.model ? App.AIVoice.get(button.dataset.model) : null;
-          runAction(button.dataset.modelAct, model, button).then(render);
+          runAction(button.dataset.modelAct, model, button).finally(() => {
+            pending.delete(key);
+            if (!closed) render();
+          });
         });
         const offs = [App.bus.on('models:change', later), App.bus.on('history:change', later)];
         render();

@@ -63,12 +63,17 @@
   async function record(item, { signal, onProgress } = {}) {
     const stream = await captureSystemAudio();
     let playback = null;
+    let recorder = null;
+    let leadTimer = 0;
+    let tailTimer = 0;
+    let stopListening = () => {};
     try {
       if (signal && signal.aborted) throw new App.TTSError('Recording cancelled.', { code: 'aborted' });
       playback = await App.TTS.openPlayback({ ...item, blob: null, hasAudio: false, engine: 'browser' });
+      if (signal && signal.aborted) throw new App.TTSError('Recording cancelled.', { code: 'aborted' });
 
       const mime = recorderMime();
-      const recorder = new MediaRecorder(new MediaStream(stream.getAudioTracks()), mime ? { mimeType: mime } : undefined);
+      recorder = new MediaRecorder(new MediaStream(stream.getAudioTracks()), mime ? { mimeType: mime } : undefined);
       const chunks = [];
       recorder.ondataavailable = (event) => event.data.size && chunks.push(event.data);
       const stopped = new Promise((resolve) => {
@@ -76,17 +81,24 @@
       });
 
       await new Promise((resolve, reject) => {
-        stream.getAudioTracks()[0].addEventListener('ended', () =>
-          reject(new App.TTSError('Sharing stopped before the recording finished.', { code: 'capture_ended' }))
-        );
-        if (signal) {
-          signal.addEventListener('abort', () => reject(new App.TTSError('Recording cancelled.', { code: 'aborted' })), { once: true });
-        }
+        const audioTrack = stream.getAudioTracks()[0];
+        const ended = () => reject(new App.TTSError('Sharing stopped before the recording finished.', { code: 'capture_ended' }));
+        const cancel = () => reject(new App.TTSError('Recording cancelled.', { code: 'aborted' }));
+        audioTrack.addEventListener('ended', ended);
+        if (signal) signal.addEventListener('abort', cancel, { once: true });
+        stopListening = () => {
+          audioTrack.removeEventListener('ended', ended);
+          if (signal) signal.removeEventListener('abort', cancel);
+        };
+        if (signal && signal.aborted) { cancel(); return; }
         playback.on('progress', (snap) => onProgress && onProgress(snap));
         playback.on('error', reject);
-        playback.on('state', (state) => state === 'ended' && setTimeout(resolve, TAIL_MS));
+        playback.on('state', (state) => {
+          if (state === 'ended') tailTimer = setTimeout(resolve, TAIL_MS);
+        });
+        recorder.onerror = (event) => reject(event.error || new App.TTSError('Your browser couldn’t start audio capture.', { code: 'capture_failed' }));
         recorder.start(250);
-        setTimeout(() => {
+        leadTimer = setTimeout(() => {
           if (!(signal && signal.aborted)) playback.play();
         }, LEAD_IN_MS);
       });
@@ -95,6 +107,12 @@
       await stopped;
       return new Blob(chunks, { type: recorder.mimeType || mime || 'audio/webm' });
     } finally {
+      clearTimeout(leadTimer);
+      clearTimeout(tailTimer);
+      stopListening();
+      if (recorder && recorder.state !== 'inactive') {
+        try { recorder.stop(); } catch { /* already stopped by the browser */ }
+      }
       if (playback) playback.destroy();
       stream.getTracks().forEach((track) => track.stop());
     }

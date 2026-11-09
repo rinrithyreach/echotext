@@ -114,6 +114,8 @@
     $('.nav', root).setAttribute('aria-label', t('Main'));
     $('.brand', root).setAttribute('aria-label', t('EchoText home'));
     $('.lang-switch', root).setAttribute('aria-label', t('Interface language'));
+    $('[data-models-open]', root).setAttribute('aria-label', t('Models & storage'));
+    $('[data-models-open]', root).dataset.tooltip = t('Models & storage');
     paintToggle();
   }
 
@@ -135,6 +137,7 @@
             <span class="lang-thumb" aria-hidden="true"></span>
             ${App.i18n.languages.map((lang) => `<button type="button" class="lang-option" data-ui-language="${lang.code}" lang="${lang.code}">${escapeHtml(lang.code === 'en' ? 'EN' : lang.native)}</button>`).join('')}
           </div>
+          <button class="nav-button" type="button" data-models-open aria-haspopup="dialog">${icon('database', 19)}</button>
           <button class="nav-button theme-toggle" type="button" data-theme-toggle></button>
         </div>
       </nav>`;
@@ -188,7 +191,12 @@
   /** Switches the interface language: the highlight slides over and the page crossfades into it. */
   function setLanguage(code) {
     if (code === (wanted || App.i18n.language)) return;
-    App.Settings.update({ uiLanguage: code }); // throws if it can't be saved, before anything has changed
+    try {
+      App.Settings.update({ uiLanguage: code }); // save before changing the interface
+    } catch (err) {
+      App.toast.error(err.message);
+      return;
+    }
     const switching = wanted !== null;
     if (!switching) {
       interruptTransition();
@@ -204,6 +212,10 @@
       root = element;
       render();
       root.addEventListener('click', (event) => {
+        if (event.target.closest('[data-models-open]')) {
+          App.components.ModelsPanel.open();
+          return;
+        }
         const theme = event.target.closest('[data-theme-toggle]');
         if (theme) {
           switchTheme(theme);

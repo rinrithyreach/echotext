@@ -165,6 +165,7 @@
   /* ---------- Downloads ---------- */
 
   const aborted = () => new App.TTSError(t('Cancelled.'), { code: 'aborted' });
+  const checkSignal = (signal) => { if (signal && signal.aborted) throw aborted(); };
 
   // A file is kept in pieces while it downloads, so closing or reloading the page (or losing the
   // connection) halfway through carries on from the last piece next time instead of starting over.
@@ -307,18 +308,22 @@
   }
 
   /** A file that comes with EchoText, read from its scripts. Null when they're missing. */
-  async function readBundled(file) {
+  async function readBundled(file, signal) {
     const parts = [];
     for (let n = 0; n < BUNDLED[file.key]; n++) {
+      checkSignal(signal);
       const id = `${file.key}#${n}`;
       try {
         await runScript(`${BUNDLE_DIR}/${file.key}.${n}.js`);
       } catch {
+        checkSignal(signal);
         return null;
       }
-      if (!received.has(id)) return null;
-      parts.push(fromBase64(received.get(id)));
+      const encoded = received.get(id);
       received.delete(id);
+      checkSignal(signal);
+      if (!encoded) return null;
+      parts.push(fromBase64(encoded));
     }
     return new Blob(parts);
   }
@@ -328,7 +333,9 @@
     const out = new Map();
     const missing = [];
     for (const file of files) {
-      const blob = (BUNDLED[file.key] ? await readBundled(file) : null) || (await cache.get(file.key).catch(() => null));
+      checkSignal(signal);
+      const blob = (BUNDLED[file.key] ? await readBundled(file, signal) : null) || (await cache.get(file.key).catch(() => null));
+      checkSignal(signal);
       if (blob) out.set(file.key, blob);
       else missing.push(file);
     }
@@ -502,11 +509,13 @@
   }
 
   async function loadVoice(rt, voice, onProgress, signal) {
+    checkSignal(signal);
     if (loaded && loaded.id === voice.id) return loaded;
     const files = await ensureFiles(voiceFiles(voice), onProgress, signal);
     if (onProgress) onProgress({ phase: 'load' });
     const config = JSON.parse(await files.get(`${voice.id}.onnx.json`).text());
     const model = await files.get(`${voice.id}.onnx`).arrayBuffer();
+    checkSignal(signal);
     release();
     const options = { executionProviders: ['wasm'], graphOptimizationLevel: 'all' };
     let session = null;
@@ -516,6 +525,10 @@
       if (patched) session = await rt.ort.InferenceSession.create(patched, options).catch(() => null);
     }
     if (!session) session = await rt.ort.InferenceSession.create(model, options);
+    if (signal && signal.aborted) {
+      await Promise.resolve(session.release && session.release()).catch(() => {});
+      throw aborted();
+    }
     loaded = { id: voice.id, session, config, durations: (session.outputNames || []).includes(MMS_DURATIONS) };
     return loaded;
   }
@@ -870,6 +883,7 @@
     /** Downloads a voice's files (if they don't come with EchoText) without loading it. */
     install(voice, { onProgress, signal } = {}) {
       return enqueue(async () => {
+        checkSignal(signal);
         const check = await this.checkDevice(voice);
         if (!check.ok) throw new App.TTSError(check.errors[0], { code: 'incompatible' });
         const report = tracking(voice.id, onProgress);
@@ -885,6 +899,7 @@
     /** Loads a voice into memory now, so the next generation starts at once. */
     load(voice, { onProgress, signal } = {}) {
       return enqueue(async () => {
+        checkSignal(signal);
         const check = await this.checkDevice(voice);
         if (!check.ok) throw new App.TTSError(check.errors[0], { code: 'incompatible' });
         const report = tracking(voice.id, onProgress);
@@ -925,6 +940,7 @@
      * built-in files again, loads it and speaks a short test. Resolves to { seconds }.
      */
     async repair(voice, { onProgress, signal } = {}) {
+      checkSignal(signal);
       if (voice.id === RUNTIME.id) {
         await enqueue(async () => {
           release();

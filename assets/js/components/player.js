@@ -42,11 +42,6 @@
               ${item.project ? `<span class="meta-text">${icon('folder', 13)} ${escapeHtml(item.project)}</span>` : ''}
             </div>
           </div>
-          <div class="player-dl">
-            <button class="btn btn-outline btn-sm" type="button" data-download aria-label="${escapeHtml(t('Download audio'))}">
-              <span>${icon('download', 16)}</span><span data-download-label>${escapeHtml(t('Download MP3'))}</span>
-            </button>
-          </div>
         </div>
 
         <div class="wave" data-wave aria-hidden="true">
@@ -71,6 +66,11 @@
                 <input class="input input-sm" id="export-name-${uid}" data-filename value="${escapeHtml(App.AudioUtils.baseNameFor(item))}" maxlength="80" autocomplete="off" spellcheck="false" />
                 <span class="input-suffix-text" data-ext>.mp3</span>
               </div>
+            </div>
+            <div class="player-dl">
+              <button class="btn btn-outline btn-sm" type="button" data-download aria-label="${escapeHtml(t('Download audio'))}">
+                <span>${icon('download', 16)}</span><span data-download-label>${escapeHtml(t('Download MP3'))}</span>
+              </button>
             </div>
           </div>
         </section>
@@ -211,7 +211,15 @@
       const fileName = typed && typed !== fallback ? typed : null;
       if (fileName !== (item.fileName || null)) {
         item.fileName = fileName;
-        if (App.History.get(item.id)) App.History.update(item.id, { fileName });
+      }
+      const saved = App.History.get(item.id);
+      if (saved && fileName !== (saved.fileName || null)) {
+        try {
+          App.History.update(item.id, { fileName });
+        } catch (err) {
+          // A full History store must not prevent downloading the audio with this name.
+          App.toast.error(t('Couldn’t rename'), err.message);
+        }
       }
       nameInput.value = App.AudioUtils.baseNameFor(item);
     }

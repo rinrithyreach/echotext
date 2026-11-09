@@ -8,7 +8,12 @@
     App.Theme.init();
     App.i18n.set(App.Settings.get().uiLanguage);
     // Clear out what removed languages and voices left behind: History items and downloaded voices.
-    App.History.pruneLanguages();
+    try {
+      App.History.pruneLanguages();
+    } catch (err) {
+      // Cleanup can be retried next time; unavailable storage must not leave a blank site.
+      console.warn('[EchoText] History cleanup deferred', err);
+    }
     if (App.AIVoice.isSupported()) App.AIVoice.prune();
     App.components.Navbar.mount(document.getElementById('navbar'));
 

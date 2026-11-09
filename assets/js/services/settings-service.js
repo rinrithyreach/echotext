@@ -90,6 +90,7 @@
 
     /** Restore only supported voices and valid controls, including older browser-voice settings. */
     voice(saved = this.get().lastVoice || {}) {
+      if (!isObject(saved)) saved = {};
       const voice = App.AIVoice.voices.find((v) => v.id === saved.voiceId) || App.AIVoice.pick(saved.language, saved.gender) || App.AIVoice.voices[0];
       return { ...App.config.voiceDefaults, ...controlsOf(saved), voiceId: voice.id, gender: voice.gender, language: voice.language };
     },
@@ -109,7 +110,7 @@
   const Presets = {
     list() {
       const saved = Settings.get().presets;
-      return Array.isArray(saved) ? saved.filter((p) => p && p.id && p.name) : [];
+      return Array.isArray(saved) ? saved.filter((p) => isObject(p) && typeof p.id === 'string' && p.id && typeof p.name === 'string' && p.name.trim()) : [];
     },
 
     get(id) {

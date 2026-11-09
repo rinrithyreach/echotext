@@ -194,7 +194,7 @@
       }
       const text = pages.filter((p) => p.trim()).join('\n\n');
       const warnings = [];
-      if (text.replace(/\s/g, '').length < 20) {
+      if (!text.trim()) {
         throw fail(t('This PDF has no text to read. It may be a scanned image; use a PDF with selectable text, or copy the text in.'), 'no_text');
       }
       const broken = (text.match(/[�-]/g) || []).length;

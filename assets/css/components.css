@@ -942,6 +942,7 @@ kbd {
   inset: 0 0 auto;
   z-index: 60;
   height: var(--nav-h);
+  padding-top: env(safe-area-inset-top, 0px);
   border-bottom: 1px solid transparent;
   transition: background-color 0.3s, border-color 0.3s;
 }
@@ -1102,7 +1103,7 @@ kbd {
 .toast-region {
   position: fixed;
   top: calc(var(--nav-h) + 12px);
-  right: 16px;
+  right: max(16px, env(safe-area-inset-right, 0px));
   z-index: 120;
   display: flex;
   flex-direction: column;
@@ -1264,7 +1265,9 @@ kbd {
   z-index: 110;
   display: grid;
   place-items: center;
-  padding: 20px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) max(20px, env(safe-area-inset-right, 0px))
+    calc(20px + env(safe-area-inset-bottom, 0px)) max(20px, env(safe-area-inset-left, 0px));
+  overflow-y: auto;
   background: var(--overlay);
   -webkit-backdrop-filter: blur(6px);
   backdrop-filter: blur(6px);
@@ -1278,6 +1281,10 @@ kbd {
 
 .modal {
   width: min(460px, 100%);
+  max-height: calc(100vh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
   padding: 28px;
   border-radius: var(--radius-xl);
   background: var(--surface-solid);
@@ -1335,13 +1342,20 @@ kbd {
 
 /* Phones: a small dialog, icon beside the title, the two buttons side by side. */
 @media (max-width: 640px) {
+  .modal-backdrop {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) max(16px, env(safe-area-inset-right, 0px))
+      calc(16px + env(safe-area-inset-bottom, 0px)) max(16px, env(safe-area-inset-left, 0px));
+  }
+
   .modal {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     align-items: center;
     column-gap: 12px;
-    width: min(312px, 100%);
-    padding: 18px;
+    width: min(400px, 100%);
+    max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    padding: 20px;
     border-radius: var(--radius-lg);
   }
 
@@ -1365,6 +1379,8 @@ kbd {
   .modal > .modal-title {
     grid-column: 2;
     font-size: 16.5px;
+    line-height: 1.5;
+    overflow-wrap: anywhere;
   }
 
   .modal-body {
@@ -1379,10 +1395,15 @@ kbd {
   }
 
   .modal-actions .btn {
-    --btn-h: 40px;
+    --btn-h: 46px;
     flex: 1 1 auto;
     padding: 0 14px;
     font-size: 13.5px;
+    height: auto;
+    min-height: var(--btn-h);
+    padding-block: 12px;
+    white-space: normal;
+    line-height: 1.5;
   }
 
   .modal-actions .btn-ghost {

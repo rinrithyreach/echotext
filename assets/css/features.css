@@ -22,6 +22,17 @@
   font-family: "Kantumruy Pro", "Khmer OS System", "Leelawadee UI", var(--font-sans);
 }
 
+.history-title[lang^="km"],
+.player-title[lang^="km"] {
+  line-height: 1.65;
+}
+
+:root.ui-km .voice-option-text,
+:root.ui-km .history-heading,
+:root.ui-km .models-section-title {
+  line-height: 1.6;
+}
+
 /* ---------- Small shared pieces ---------- */
 .input-sm,
 .select.input-sm {
@@ -335,7 +346,8 @@
 /* ---------- Dialogs ---------- */
 .modal-wide {
   width: min(720px, 100%);
-  max-height: calc(100dvh - 40px);
+  max-height: calc(100vh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - 40px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   overflow-y: auto;
 }
 
@@ -612,7 +624,7 @@
 
 .device-checks {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 8px;
   margin: 0;
   padding: 0;
@@ -776,17 +788,69 @@
   color: var(--danger);
 }
 
-/* ---------- Phones ---------- */
+/* ---------- Touch layouts ---------- */
+@media (max-width: 960px) {
+  .input,
+  .input.input-sm,
+  .select,
+  .select.input-sm,
+  .textarea,
+  .import-preview { font-size: 16px; }
+
+  .input.input-sm,
+  .select.input-sm { height: 46px; }
+  .nav-button,
+  .voice-preview { width: 44px; height: 44px; }
+  .tab { min-height: 44px; }
+  .segmented-item { height: auto; min-height: 44px; padding: 10px 8px; line-height: 1.5; white-space: normal; }
+
+  .range-wrap { height: 44px; --thumb: 22px; }
+  .range-track { top: 19px; }
+  .range-thumb { top: 11px; }
+  .range::-webkit-slider-thumb { height: 44px; }
+  .range::-moz-range-thumb { height: 44px; }
+}
+
+@media (max-width: 480px) {
+  .nav { gap: 8px; }
+  .brand-name { display: none; }
+}
+
 @media (max-width: 640px) {
-  .lang-option {
-    min-width: 38px;
-    padding: 0 8px;
+  .navbar {
+    padding-top: env(safe-area-inset-top, 0px);
+    background: var(--nav-bg);
+    border-bottom-color: var(--border);
+    -webkit-backdrop-filter: blur(18px);
+    backdrop-filter: blur(18px);
   }
+
+  .nav-actions { gap: 6px; }
+  .nav-button { width: 44px; height: 44px; background: var(--surface); border: 1px solid var(--border); }
+  .lang-switch { padding: 3px; }
+  .lang-option {
+    min-width: 44px;
+    height: 44px;
+    padding: 0 10px;
+  }
+
+  .input,
+  .select,
+  .input.input-sm,
+  .select.input-sm { height: 46px; }
+  .voice-option { padding: 8px; border-radius: 12px; }
+  .voice-option-main { padding: 0; gap: 10px; }
+  .voice-option-text { line-height: 1.5; }
+  .voice-preview { width: 44px; height: 44px; background: var(--accent-soft); border-radius: 10px; }
+  .voice-avatar { width: 36px; height: 36px; }
+  .note { line-height: 1.65; overflow-wrap: anywhere; }
 
   .modal.modal-wide {
     display: block;
     width: 100%;
-    padding: 18px;
+    padding: 20px;
+    max-height: calc(100vh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
+    max-height: calc(100dvh - 32px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px));
   }
 
   .modal.modal-wide > .modal-icon {
@@ -795,9 +859,42 @@
 
   .import-preview {
     min-height: 200px;
+    max-height: 38dvh;
   }
 
+  .history-head { align-items: center; margin-bottom: 14px; }
+  .history-toolbar { gap: 10px; }
+  .history-search { flex-basis: 100%; }
   .history-filter-project {
-    flex: 1 1 140px;
+    flex: 1 1 100%;
   }
+
+  .model-row { padding: 14px; gap: 12px; border-radius: 12px; }
+  .model-info { flex-basis: 100%; overflow-wrap: anywhere; }
+  .model-info strong { line-height: 1.6; }
+  .model-actions { width: 100%; gap: 8px; }
+  .model-actions .btn { --btn-h: 44px; flex: 1 1 88px; height: auto; min-height: 44px; padding-block: 10px; white-space: normal; line-height: 1.5; background: var(--surface-hover); }
+  .storage-persist .btn { --btn-h: 44px; }
+  .model-progress progress { min-width: 0; }
+  .device-check { min-width: 0; overflow-wrap: anywhere; }
+  .device-check > span { min-width: 0; }
+  .menu-item { min-height: 46px; white-space: normal; line-height: 1.5; }
+
+  .toast-region {
+    top: calc(var(--nav-h) + 10px);
+    left: max(12px, env(safe-area-inset-left, 0px));
+    right: max(12px, env(safe-area-inset-right, 0px));
+    width: auto;
+  }
+  .toast { flex-wrap: wrap; align-items: flex-start; gap: 8px; padding: 12px; }
+  .toast-body { flex-basis: calc(100% - 90px); }
+  .toast-title { line-height: 1.6; overflow-wrap: anywhere; }
+  .toast-action { order: 2; min-height: 44px; height: auto; margin-left: 38px; padding-block: 8px; white-space: normal; }
+  .toast-close { width: 44px; height: 44px; margin-top: -4px; margin-right: -4px; }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  [data-tooltip]::after { display: none; }
+  .player-play:hover,
+  .history-play:hover { transform: none; }
 }

@@ -2,7 +2,7 @@
 <html lang="en" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>EchoText — Turn Your Text Into Natural Voice</title>
     <meta name="description" content="Turn English and Khmer text into speech on your device. Import documents, resume long recordings, and download MP3 audio." />
     <meta name="theme-color" content="#04070a" />
@@ -25,10 +25,10 @@
       })();
     </script>
 
-    <link rel="stylesheet" href="assets/css/base.css?v=20261107-font-1" />
-    <link rel="stylesheet" href="assets/css/components.css?v=20261107-theme-1" />
-    <link rel="stylesheet" href="assets/css/pages.css?v=20261107-font-1" />
-    <link rel="stylesheet" href="assets/css/features.css?v=20261107-font-1" />
+    <link rel="stylesheet" href="assets/css/base.css?v=20261109-mobile-1" />
+    <link rel="stylesheet" href="assets/css/components.css?v=20261109-mobile-1" />
+    <link rel="stylesheet" href="assets/css/pages.css?v=20261109-mobile-1" />
+    <link rel="stylesheet" href="assets/css/features.css?v=20261109-mobile-1" />
   </head>
   <body>
     <a class="skip-link" href="#main" data-skip>Skip to content</a>
@@ -51,7 +51,7 @@
     </noscript>
 
     <!-- Core -->
-    <script defer src="assets/js/core/utils.js"></script>
+    <script defer src="assets/js/core/utils.js?v=20261109-mobile-1"></script>
     <script defer src="assets/js/core/i18n.js"></script>
     <script defer src="assets/js/core/i18n-km.js"></script>
     <script defer src="assets/js/core/zip.js"></script>
@@ -60,24 +60,24 @@
     <script defer src="assets/js/config/app-config.js"></script>
 
     <!-- Services -->
-    <script defer src="assets/js/services/settings-service.js"></script>
+    <script defer src="assets/js/services/settings-service.js?v=20261109-fixes-1"></script>
     <script defer src="assets/js/services/audio-store.js"></script>
     <script defer src="assets/js/services/generation-store.js"></script>
     <script defer src="assets/js/services/file-saver.js"></script>
-    <script defer src="assets/js/services/history-service.js"></script>
-    <script defer src="assets/js/services/document-import.js"></script>
+    <script defer src="assets/js/services/history-service.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/services/document-import.js?v=20261109-fixes-1"></script>
     <script defer src="assets/js/services/audio/audio-utils.js"></script>
-    <script defer src="assets/js/services/audio/audio-playback.js"></script>
+    <script defer src="assets/js/services/audio/audio-playback.js?v=20261109-fixes-1"></script>
     <script defer src="assets/js/services/tts/speech-playback.js"></script>
     <script defer src="assets/js/services/tts/browser-voices.js"></script>
     <script defer src="assets/js/services/tts/providers/base.js"></script>
     <script defer src="assets/js/services/tts/providers/browser.js"></script>
     <!-- Keep the speech pipeline on the same version so cached helpers match their callers. -->
-    <script defer src="assets/js/services/tts/text-segments.js?v=20261107-voices-3"></script>
-    <script defer src="assets/js/services/tts/khmer-text.js?v=20261107-voices-3"></script>
-    <script defer src="assets/js/services/tts/ai-voice.js?v=20261107-voices-3"></script>
-    <script defer src="assets/js/services/tts/tts-service.js?v=20261107-voices-3"></script>
-    <script defer src="assets/js/services/audio/speech-recorder.js"></script>
+    <script defer src="assets/js/services/tts/text-segments.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/services/tts/khmer-text.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/services/tts/ai-voice.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/services/tts/tts-service.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/services/audio/speech-recorder.js?v=20261109-fixes-1"></script>
 
     <!-- UI -->
     <script defer src="assets/js/ui/toast.js"></script>
@@ -86,18 +86,18 @@
     <script defer src="assets/js/ui/menu.js"></script>
 
     <!-- Components -->
-    <script defer src="assets/js/components/navbar.js?v=20261107-theme-1"></script>
-    <script defer src="assets/js/components/player.js"></script>
-    <script defer src="assets/js/components/generator.js"></script>
-    <script defer src="assets/js/components/history-list.js"></script>
-    <script defer src="assets/js/components/models-panel.js"></script>
+    <script defer src="assets/js/components/navbar.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/components/player.js?v=20261109-mobile-1"></script>
+    <script defer src="assets/js/components/generator.js?v=20261109-mobile-1"></script>
+    <script defer src="assets/js/components/history-list.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/components/models-panel.js?v=20261109-fixes-1"></script>
 
     <!-- Pages -->
-    <script defer src="assets/js/pages/home.js"></script>
+    <script defer src="assets/js/pages/home.js?v=20261109-fixes-1"></script>
     <script defer src="assets/js/pages/not-found.js"></script>
 
     <!-- App -->
-    <script defer src="assets/js/core/router.js"></script>
-    <script defer src="assets/js/app.js"></script>
+    <script defer src="assets/js/core/router.js?v=20261109-fixes-1"></script>
+    <script defer src="assets/js/app.js?v=20261109-fixes-1"></script>
   </body>
 </html>

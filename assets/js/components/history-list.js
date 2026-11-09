@@ -15,7 +15,7 @@
   const ALL = '__all__';
   const NONE = '__none__';
 
-  const state = { activeId: null, playback: null, filter: { query: '', project: ALL } };
+  const state = { activeId: null, playback: null, playbackRequest: 0, loadingButton: null, filter: { query: '', project: ALL } };
   const shown = new Set(); // ids already in the list: only rows that are new slide in
 
   /** History, newest first. */
@@ -51,7 +51,7 @@
     const playing = active && state.playback && state.playback.state === 'playing';
     const downloadTip = t('Download MP3');
     return `
-      <article class="history-item glass${isNew ? ' is-new' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}" data-id="${item.id}"${isNew ? ` style="animation-delay:${Math.min(index, 10) * 35}ms"` : ''}>
+      <article class="history-item glass${isNew ? ' is-new' : ''}${active ? ' is-active' : ''}${playing ? ' is-playing' : ''}" data-id="${escapeHtml(item.id)}"${isNew ? ` style="animation-delay:${Math.min(index, 10) * 35}ms"` : ''}>
         <button class="history-play" type="button" data-act="play" aria-label="${escapeHtml(t(playing ? 'Pause {title}' : 'Play {title}', { title: item.title }))}">
           ${icon(playing ? 'pause' : 'play', 18)}
         </button>
@@ -156,7 +156,8 @@
   }
 
   function rowFor(root, id) {
-    return root.querySelector(`.history-item[data-id="${id}"]`);
+    // Saved IDs are data, not CSS: old/imported entries may contain quotes or brackets.
+    return [...root.querySelectorAll('.history-item')].find((row) => row.dataset.id === String(id)) || null;
   }
 
   function paintActive(root, snapshot) {
@@ -189,12 +190,18 @@
   }
 
   function stopPlayback(root) {
+    state.playbackRequest++;
+    if (state.loadingButton) state.loadingButton.classList.remove('is-loading');
+    state.loadingButton = null;
     if (state.playback) state.playback.destroy();
     if (state.activeId) {
       const row = rowFor(root, state.activeId);
       if (row) {
         row.classList.remove('is-active', 'is-playing');
-        row.querySelector('[data-act="play"]').innerHTML = icon('play', 18);
+        const button = row.querySelector('[data-act="play"]');
+        button.innerHTML = icon('play', 18);
+        const item = App.History.get(state.activeId);
+        button.setAttribute('aria-label', t('Play {title}', { title: item ? item.title : '' }));
       }
     }
     state.playback = null;
@@ -202,16 +209,19 @@
   }
 
   async function togglePlay(root, item, button) {
+    if (state.activeId === item.id && state.loadingButton) return;
     if (state.activeId === item.id && state.playback) {
       state.playback.toggle();
       return;
     }
     stopPlayback(root);
+    const request = state.playbackRequest;
     state.activeId = item.id;
+    state.loadingButton = button;
     button.classList.add('is-loading');
     try {
       const playback = await App.TTS.openPlayback(item);
-      if (state.activeId !== item.id) {
+      if (request !== state.playbackRequest) {
         playback.destroy();
         return;
       }
@@ -224,10 +234,15 @@
       setRowState(root, item.id, false);
       playback.play();
     } catch (err) {
-      state.activeId = null;
-      App.toast.error(t('Can’t play this audio'), err.message);
+      if (request === state.playbackRequest) {
+        state.activeId = null;
+        App.toast.error(t('Can’t play this audio'), err.message);
+      }
     } finally {
-      button.classList.remove('is-loading');
+      if (request === state.playbackRequest) {
+        button.classList.remove('is-loading');
+        state.loadingButton = null;
+      }
     }
   }
 
@@ -243,15 +258,29 @@
     if (state.activeId === item.id) stopPlayback(root);
     const row = rowFor(root, item.id);
     if (row) row.classList.add('is-removing');
-    const removed = await App.History.remove(item.id);
-    if (!removed) return;
+    let removed;
+    try {
+      removed = await App.History.remove(item.id);
+    } catch (err) {
+      if (row) row.classList.remove('is-removing');
+      App.toast.error(t('Something went wrong'), err.message);
+      return;
+    }
+    if (!removed) {
+      if (row) row.classList.remove('is-removing');
+      return;
+    }
     App.toast.success(t('Audio deleted'), item.title, {
       stack: true, // every deleted item keeps its own Undo, even two with the same title
       action: {
         label: t('Undo'),
         onClick: async () => {
-          await App.History.restore(removed);
-          App.toast.info(t('Audio restored'));
+          try {
+            await App.History.restore(removed);
+            App.toast.info(t('Audio restored'));
+          } catch (err) {
+            App.toast.error(t('Something went wrong'), err.message);
+          }
         },
       },
     });
@@ -353,9 +382,7 @@
         off();
         onQuery.cancel();
         App.menu.close();
-        if (state.playback) state.playback.destroy();
-        state.playback = null;
-        state.activeId = null;
+        stopPlayback(root);
       },
     };
   }

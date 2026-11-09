@@ -10,7 +10,17 @@
 
   const History = {
     list() {
-      return App.storage.get(KEY, []);
+      const saved = App.storage.get(KEY, []);
+      // A damaged or older storage entry must not prevent the studio from opening.
+      if (!Array.isArray(saved)) return [];
+      return saved
+        .filter((item) => item && typeof item === 'object' && !Array.isArray(item) && typeof item.id === 'string' && item.id && typeof item.text === 'string')
+        .map((item) => ({
+          ...item,
+          title: typeof item.title === 'string' && item.title.trim() ? item.title : App.utils.titleFromText(item.text),
+          createdAt: Number.isFinite(item.createdAt) && Math.abs(item.createdAt) <= 8640000000000000 ? item.createdAt : 0,
+          project: cleanProject(item.project),
+        }));
     },
 
     get(id) {
@@ -55,8 +65,11 @@
         createdAt: result.createdAt,
       };
 
+      const previous = this.get(item.id);
+      let previousBlob = null;
       if (result.blob) {
         try {
+          if (previous && previous.hasAudio) previousBlob = await App.AudioStore.get(item.id);
           await App.AudioStore.put(item.id, result.blob);
           item.hasAudio = true;
         } catch (err) { throw new Error(App.t('Audio could not be saved to History. Download it now or continue the saved generation later.'), { cause: err }); }
@@ -65,7 +78,16 @@
       const items = [item, ...this.list().filter((existing) => existing.id !== item.id)];
       // Past the limit, the oldest items go.
       const removed = preserveHistory ? [] : items.splice(App.config.historyLimit);
-      this._save(items);
+      try {
+        this._save(items);
+      } catch (err) {
+        // Keep IndexedDB in step with metadata if localStorage rejects this save.
+        if (result.blob) {
+          if (previousBlob) await App.AudioStore.put(item.id, previousBlob).catch(() => {});
+          else await App.AudioStore.delete(item.id).catch(() => {});
+        }
+        throw err;
+      }
       removed.forEach((old) => old.hasAudio && App.AudioStore.delete(old.id).catch(() => {}));
       return item;
     },
@@ -76,8 +98,8 @@
       const items = this.list();
       const removed = items.filter((item) => item.language && !supported(item.language));
       if (!removed.length) return;
-      removed.forEach((item) => item.hasAudio && App.AudioStore.delete(item.id).catch(() => {}));
       this._save(items.filter((item) => !removed.includes(item)));
+      removed.forEach((item) => item.hasAudio && App.AudioStore.delete(item.id).catch(() => {}));
     },
 
     update(id, patch) {
@@ -111,18 +133,23 @@
 
     /** Removes an item and returns what is needed to undo the removal. */
     async remove(id) {
+      const original = this.get(id);
+      if (!original) return null;
+      // Do not delete audio that could not be read for Undo.
+      const blob = original.hasAudio ? await App.AudioStore.get(id) : null;
+      // Reading audio is asynchronous: retain generations, renames and deletions
+      // that happened while IndexedDB was returning this file.
       const items = this.list();
       const index = items.findIndex((item) => item.id === id);
       if (index === -1) return null;
       const [item] = items.splice(index, 1);
-      const blob = item.hasAudio ? await App.AudioStore.get(id).catch(() => null) : null;
       this._save(items);
       if (item.hasAudio) await App.AudioStore.delete(id).catch(() => {});
       return { item, blob, index };
     },
 
     async restore({ item, blob, index }) {
-      if (blob) await App.AudioStore.put(item.id, blob).catch(() => {});
+      if (blob) await App.AudioStore.put(item.id, blob);
       const items = this.list().filter((existing) => existing.id !== item.id);
       items.splice(Math.min(index, items.length), 0, { ...item, hasAudio: !!blob });
       this._save(items);

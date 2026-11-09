@@ -184,7 +184,9 @@
   function scrollToId(id, { focus } = {}) {
     const target = document.getElementById(id);
     if (!target) return;
-    const navHeight = parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'), 10) || 72;
+    const navbar = document.getElementById('navbar');
+    const navHeight = (navbar && navbar.getBoundingClientRect().height)
+      || parseInt(getComputedStyle(document.documentElement).getPropertyValue('--nav-h'), 10) || 72;
     const top = target.getBoundingClientRect().top + window.scrollY - navHeight - 16;
     window.scrollTo({ top: Math.max(0, top), behavior: prefersReducedMotion() ? 'auto' : 'smooth' });
     if (focus) {

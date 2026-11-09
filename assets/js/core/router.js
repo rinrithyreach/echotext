@@ -36,7 +36,9 @@
 
     parse() {
       const hash = window.location.hash.replace(/^#/, '') || '/';
-      const [rawPath, search = ''] = hash.split('?');
+      const separator = hash.indexOf('?');
+      const rawPath = separator < 0 ? hash : hash.slice(0, separator);
+      const search = separator < 0 ? '' : hash.slice(separator + 1);
       const path = `/${rawPath.replace(/^\/+|\/+$/g, '')}`;
       return { path, query: new URLSearchParams(search), search };
     }
@@ -63,13 +65,25 @@
       const section = query.get('section');
       const page = this.routes.get(path) || this.routes.get('*');
 
-      // Same page, only a section anchor changed → just scroll.
-      if (this.current && this.current.page === page && this.current.path === path && section && !force) {
-        this.current.search = search;
-        this._scrollToSection(page, section);
-        return;
+      if (this.current && this.current.page === page && this.current.path === path && !force) {
+        if (this.current.search === search) return;
+        // Adding, changing or removing a section anchor keeps the mounted studio,
+        // including its active generation and player. Other query changes may
+        // affect a page's content, so those still render the page again.
+        const previous = new URLSearchParams(this.current.search);
+        const next = new URLSearchParams(search);
+        previous.delete('section');
+        next.delete('section');
+        previous.sort();
+        next.sort();
+        if (previous.toString() === next.toString()) {
+          this.current.search = search;
+          if (section) this._scrollToSection(page, section);
+          else window.scrollTo(0, 0);
+          App.bus.emit('route:change', { path, query });
+          return;
+        }
       }
-      if (this.current && this.current.page === page && this.current.search === search && !force) return;
 
       if (this.current && this.current.page.unmount) {
         try {

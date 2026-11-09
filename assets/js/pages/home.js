@@ -28,9 +28,17 @@
       });
     },
     onSection(section) {
-      if (section === 'studio' && this.generator) setTimeout(() => this.generator.focus(), 500);
+      clearTimeout(this.focusTimer);
+      if (section === 'studio' && this.generator) {
+        const generator = this.generator;
+        this.focusTimer = setTimeout(() => {
+          if (this.generator === generator) generator.focus();
+        }, 500);
+      }
     },
     unmount() {
+      clearTimeout(this.focusTimer);
+      this.focusTimer = null;
       if (this.generator) this.carry = (this.generator.destroy() || {}).shown || null;
       if (this.history) this.history.destroy();
       this.generator = null;

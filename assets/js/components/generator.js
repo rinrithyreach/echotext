@@ -97,7 +97,8 @@
             <div class="voice-panel-head">
               <h3>
                 <button type="button" class="voice-panel-toggle" data-action="toggle-panel" aria-controls="voice-panel-body">
-                  ${icon('sliders', 17)} ${escapeHtml(t('Voice settings'))} ${icon('chevron-down', { size: 16, className: 'voice-panel-chevron' })}
+                  <span class="voice-panel-title">${icon('sliders', 17)} ${escapeHtml(t('Voice settings'))} ${icon('chevron-down', { size: 16, className: 'voice-panel-chevron' })}</span>
+                  <span class="voice-panel-summary" data-panel-summary></span>
                 </button>
               </h3>
               <button type="button" class="btn btn-ghost btn-xs" data-action="reset">${icon('rotate-ccw', 14)} ${escapeHtml(t('Reset'))}</button>
@@ -162,6 +163,8 @@
       jobs: new Map(),
       deviceOk: new Set(), // voices whose device warnings were accepted this session
       tab: 'voice',
+      importRequest: 0,
+      notesRequest: 0,
     };
 
     root.innerHTML = template(state.voice);
@@ -175,6 +178,7 @@
       meter: $('[data-meter]', root),
       panel: $('[data-voice-panel]', root),
       panelToggle: $('[data-action="toggle-panel"]', root),
+      panelSummary: $('[data-panel-summary]', root),
       voices: $('[data-voice-list]', root),
       notes: $('[data-notes]', root),
       generate: $('[data-action="generate"]', root),
@@ -204,6 +208,7 @@
     const notesLater = debounce(() => updateNotes(), 350);
 
     function onTextChange() {
+      ++state.importRequest;
       updateCounter();
       saveDraft();
       notesLater();
@@ -211,6 +216,7 @@
     }
 
     function setText(value, { focus = true } = {}) {
+      if (state.destroyed) return;
       el.text.value = value;
       onTextChange();
       if (focus) el.text.focus({ preventScroll: true });
@@ -242,7 +248,7 @@
     }
 
     /** Shows text taken from a .docx or .pdf so it can be checked (and edited) before it's used. */
-    async function previewImport(result) {
+    async function previewImport(result, request) {
       const paragraphs = result.text.split(/\n\s*\n/).length;
       const stats = [
         result.pages ? t(result.pages === 1 ? '{n} page' : '{n} pages', { n: formatNumber(result.pages) }) : null,
@@ -272,14 +278,15 @@
           return { text, mode: mode ? mode.value : 'replace' };
         },
       });
-      if (!choice) return;
+      if (!choice || state.destroyed || state.generating || request !== state.importRequest) return;
       const text = choice.mode === 'append' ? `${el.text.value.replace(/\s+$/, '')}\n\n${choice.text}` : choice.text;
       setText(text);
       if (!warnIfLong(text)) App.toast.success(t('Text loaded'), `${result.name} · ${t('{n} characters', { n: formatNumber(choice.text.length) })}`);
     }
 
     async function loadFile(file) {
-      if (state.generating || !file) return;
+      if (state.destroyed || state.generating || App.TTS.isBusy() || !file) return;
+      const request = ++state.importRequest;
       const kind = App.DocumentImport.kindOf(file);
       let status = null;
       try {
@@ -291,14 +298,16 @@
         });
         if (status) status.close();
         status = null;
+        if (state.destroyed || state.generating || request !== state.importRequest) return;
         if (result.kind === 'txt') {
           setText(result.text);
           if (!warnIfLong(result.text)) App.toast.success(t('File loaded'), `${file.name} · ${t('{n} characters', { n: formatNumber(result.text.length) })}`);
           return;
         }
-        await previewImport(result);
+        await previewImport(result, request);
       } catch (err) {
         if (status) status.close();
+        if (state.destroyed || request !== state.importRequest) return;
         const titles = { unsupported: 'Unsupported file', too_large: 'File too large', empty: 'Empty file', no_text: 'No text found', password: 'Password-protected PDF' };
         const title = t(titles[err.code] || 'Couldn’t read file');
         if (err.code === 'empty') App.toast.warning(title, err.message);
@@ -341,9 +350,11 @@
     /* ---------- Toolbar actions ---------- */
 
     async function paste() {
+      const request = ++state.importRequest;
       try {
         if (!navigator.clipboard || !navigator.clipboard.readText) throw new Error('unsupported');
         const clip = await navigator.clipboard.readText();
+        if (state.destroyed || state.generating || App.TTS.isBusy() || request !== state.importRequest) return;
         if (!clip) {
           App.toast.info(t('Clipboard is empty'));
           return;
@@ -356,6 +367,7 @@
         }
         onTextChange();
       } catch {
+        if (state.destroyed || state.generating || request !== state.importRequest) return;
         App.toast.info(t('Paste with your keyboard'), t('Clipboard access was blocked — press {keys} instead.', { keys: `${isMac ? '⌘' : 'Ctrl'} + V` }));
         el.text.focus();
       }
@@ -436,10 +448,31 @@
 
     /* ---------- Voice settings ---------- */
 
-    const persistVoice = debounce(() => App.Settings.update({ lastVoice: { ...state.voice } }), 300);
+    function saveVoice({ quiet = false } = {}) {
+      try {
+        App.Settings.update({ lastVoice: { ...state.voice } });
+        return true;
+      } catch (err) {
+        if (!quiet) App.toast.error(t('Settings could not be saved. Browser storage may be full.'), err.message);
+        return false;
+      }
+    }
+    const persistVoice = debounce(() => saveVoice(), 300);
+
+    // Closing or reloading can happen before the editor and controls' debounce timers fire.
+    function saveSession() {
+      saveDraft.cancel();
+      persistVoice.cancel();
+      App.storage.set(DRAFT_KEY, el.text.value);
+      saveVoice({ quiet: true });
+    }
+    window.addEventListener('pagehide', saveSession);
+    cleanups.push(() => window.removeEventListener('pagehide', saveSession));
 
     function syncControls() {
       const v = state.voice;
+      const selectedVoice = App.AIVoice.voiceFor(v);
+      el.panelSummary.textContent = `${t(App.config.getLanguage(v.language).name)} · ${selectedVoice.name}`;
       SLIDERS.forEach(({ key }) => {
         const input = $(`[data-range="${key}"]`, root);
         input.value = v[key];
@@ -486,6 +519,7 @@
     }));
 
     async function updateNotes() {
+      const request = ++state.notesRequest;
       const notes = [];
       const voice = App.AIVoice.voiceFor(state.voice);
       if (!App.AIVoice.isSupported()) {
@@ -501,7 +535,7 @@
       }
       if (voice) {
         const check = await App.AIVoice.checkDevice(voice).catch(() => null);
-        if (state.destroyed) return;
+        if (state.destroyed || request !== state.notesRequest) return;
         if (check) {
           check.errors.forEach((message) => notes.push(['error', 'x-circle', message]));
           check.warnings.forEach((message) => notes.push(['warning', 'alert-triangle', message]));
@@ -527,9 +561,9 @@
       stopPreview();
       renderVoices();
       syncControls();
-      App.Settings.update({ lastVoice: { ...state.voice } });
+      const saved = saveVoice();
       updateNotes();
-      App.toast.success(t('Voice settings reset'), t('{name}, normal speed, pitch and pauses.', { name: voice.name }));
+      if (saved) App.toast.success(t('Voice settings reset'), t('{name}, normal speed, pitch and pauses.', { name: voice.name }));
     }
 
     /* ---------- Tabs ---------- */
@@ -558,6 +592,7 @@
 
     function stopPreview() {
       if (state.previewController) state.previewController.abort(); // a preview still being made
+      state.previewController = null;
       if (state.preview) {
         state.preview.playback.destroy();
         state.preview = null;
@@ -579,28 +614,30 @@
 
     /** Plays a short sample with `voiceId` and the current speed and pitch. */
     async function preview(voiceId) {
-      if (state.preview && state.preview.id === voiceId) {
+      if (state.destroyed || state.generating || App.TTS.isBusy()) return;
+      if ((state.preview && state.preview.id === voiceId) || state.previewLoading === voiceId) {
         stopPreview();
         return;
       }
       stopPreview();
       const voice = App.AIVoice.get(voiceId);
-      if (!(await confirmDevice(voice))) return;
+      if (!voice) return;
       state.previewLoading = voiceId;
       paintPreviewButtons();
       const controller = new AbortController();
       state.previewController = controller;
       let status = null;
       try {
+        if (!(await confirmDevice(voice, controller.signal)) || controller.signal.aborted || state.destroyed) return;
         const playback = await App.TTS.preview({ ...state.voice, voiceId: voice.id, language: voice.language, gender: voice.gender }, {
           signal: controller.signal,
           onProgress: (info) => {
-            if (info.phase !== 'download') return;
+            if (controller.signal.aborted || state.destroyed || info.phase !== 'download') return;
             if (!status) status = App.toast.show({ type: 'info', title: t('Downloading {name}…', { name: voice.name }), duration: 0, action: { label: t('Cancel'), onClick: () => controller.abort() } });
             status.update({ title: t('Downloading {name}…', { name: voice.name }), message: `${formatBytes(info.loaded)} / ${formatBytes(info.total)}` });
           },
         });
-        if (controller.signal.aborted) {
+        if (controller.signal.aborted || state.destroyed) {
           playback.destroy(); // stopped while it was being made
           return;
         }
@@ -615,19 +652,22 @@
         });
         playback.play();
       } catch (err) {
-        if (err.code !== 'aborted') App.toast.error(t('Preview failed'), err.message);
+        if (!controller.signal.aborted && !state.destroyed && err.code !== 'aborted') App.toast.error(t('Preview failed'), err.message);
       } finally {
         if (status) status.close();
-        if (state.previewController === controller) state.previewController = null;
-        state.previewLoading = null;
-        paintPreviewButtons();
-        refreshVoiceStatus();
+        if (state.previewController === controller) {
+          state.previewController = null;
+          state.previewLoading = null;
+          paintPreviewButtons();
+          refreshVoiceStatus();
+        }
       }
     }
 
     /** Device warnings (low memory) are shown once per voice before it loads. Resolves false to stop. */
-    async function confirmDevice(voice) {
+    async function confirmDevice(voice, signal) {
       const check = await App.AIVoice.checkDevice(voice);
+      if (state.destroyed || signal?.aborted) return false;
       if (!check.ok) {
         App.toast.error(t('Can’t load {name}', { name: voice.name }), check.errors[0], { duration: 8000 });
         return false;
@@ -761,6 +801,8 @@
       const speaker = App.AIVoice.voiceFor(state.voice);
       // Reserve the studio before the asynchronous check so a second click cannot replace
       // the first run's AbortController or re-enable its controls.
+      ++state.importRequest;
+      stopPreview();
       setGenerating(true);
       let allowed = false;
       try {
@@ -777,6 +819,7 @@
       App.Playback.stopAll();
       const voice = { ...state.voice };
       destroyPlayer();
+      state.shown = null;
       state.controller = new AbortController();
       setGenerating(true);
       showLoading(speaker.name, el.text.value.trim().length);
@@ -910,12 +953,17 @@
       },
       /** Loads a History item back into the editor with its text and voice settings. */
       load(item) {
+        if (state.destroyed) return;
         if (state.generating) { App.toast.info(t('Generation is running'), t('Stop it before opening another item.')); return; }
+        ++state.importRequest;
         stopPreview();
         const voice = App.Settings.voice(item);
         setVoice(voice, { rerender: true });
         setText(String(item.text || ''));
         destroyPlayer();
+        state.shown = null;
+        el.result.hidden = true;
+        el.result.innerHTML = '';
         if (item.hasAudio) showResult(item, false);
       },
       destroy() {
@@ -928,8 +976,7 @@
         persistVoice.cancel();
         notesLater.cancel();
         refreshVoicesLater.cancel();
-        App.storage.set(DRAFT_KEY, el.text.value);
-        App.Settings.update({ lastVoice: { ...state.voice } });
+        saveSession();
         return { shown: state.generating ? null : state.shown || null };
       },
     };
